@@ -1,68 +1,4 @@
 
-"""
-Here the idea is to do preprocessing a little bit differently:
-
-We assume that the fly_builder already ran and that the fly_dir exists.
-
-Sherlock webpage writes:
-    Although jobs can directly read and write to $OAK during execution,
-    it is recommended to first stage files from $OAK to $SCRATCH at the
-    beginning of a series of jobs, and save the desired results back from
-    $SCRATCH to $OAK at the end of the job campaign.
-
-    We strongly recommend using $OAK to reference your group home directory in
-    scripts, rather than its explicit path.
-AND:
-    Each compute node has a low latency, high-bandwidth Infiniband link to $SCRATCH.
-    The aggregate bandwidth of the filesystem is about 75GB/s. So any job with high
-    data performance requirements will take advantage from using $SCRATCH for I/O.
-"""
-import natsort
-import pathlib
-import json
-import datetime
-# path of workflow i.e. /Users/dtadres/snake_brainsss/workflow
-#scripts_path = pathlib.Path(__file__).resolve()
-scripts_path = workflow.basedir # Exposes path to this file
-from brainsss import utils
-from scripts import preprocessing
-from scripts import snake_utils
-import os
-import sys
-print(os.getcwd())
-
-# On sherlock using config file type:
-# ml python/3.9.0
-# source .env_snakemake/bin/activate
-# cd snake_brainsss/workflow
-# snakemake --config user=dtadres --profile profiles/simple_slurm -s preprocess_fly.smk --directory /oak/stanford/groups/trc/data/David/Bruker/preprocessed/FS144_x_FS69/fly_008
-# The 'user' points to the user file in 'users' folder. **Change to your name! **
-# The profile ot the config.yaml in the profiles/simple_slurm folder. Doesn't need to be changed
-# The -s indicates the script to be run (this one, so 'preprocess_fly.smk')
-# --directory is the fly you want to point to!
-########################################################
-
-#>>>>
-fictrac_fps = 100 # AUTOMATE THIS!!!! ELSE FOR SURE A MISTAKE WILL HAPPEN IN THE FUTURE!!!!
-# TODO!!!! Instead of just believing a framerate, use the voltage signal recorded during imaging
-# that defines the position of a given frame!
-#<<<<
-
-# First n frames to average over when computing mean/fixed brain | Default None
-# (average over all frames).
-
-
-meanbrain_n_frames =  None
-current_user = config['user'] # this is whatever is entered when calling snakemake, i.e.
-# snakemake --profile profiles/simple_slurm -s snaketest.smk --config user=jcsimon would
-# yield 'jcsimon' here
-settings = utils.load_user_settings(current_user)
-dataset_path = pathlib.Path(settings['dataset_path'])
-
-# On sherlock this is usually python3 but on a personal computer can be python
-shell_python_command = str(settings.get('shell_python_command', "python3"))
-print("shell_python_command" + shell_python_command)
-moco_temp_folder = str(settings.get('moco_temp_folder', "/scratch/groups/trc"))
 
 # Define path to imports to find fly.json!
 #fly_folder_to_process_oak = pathlib.Path(dataset_path,fly_folder_to_process)
@@ -86,11 +22,12 @@ if STRUCTURAL_CHANNEL != 'channel_1' and \
     STRUCTURAL_CHANNEL != 'channel_2' and \
         STRUCTURAL_CHANNEL != 'channel_3':
     print('!!! ERROR !!!')
-    print('You must provide "structural_channel" in the "fly.json" file for snake_visanalysis to run!')
+    print('You must provide "structural_channel" in the "fly.json" file for snake_brainsss to run!')
     sys.exit()
     # This would be a implicit fix. Not great as it'll
     # hide potential bugs. Better explicit
     #STRUCTURAL_CHANNEL = FUNCTIONAL_CHANNELS[0]
+
 
 # Bool for which channel exists in this particular recording.
 # We currently assume that for folders with 'func' in the folder name
@@ -131,6 +68,40 @@ for key in fly_dirs_dict:
         fictrac_file_paths.append(fly_dirs_dict[key][1::])
         # This yields for example 'func1/fictrac/fictrac_behavior_data.dat'
         # With automatic stimpack transfer it'll return "/func0/stimpack/loco/fictrac_behavior_data.dat"
+
+#######
+# Data path on OAK
+#######
+'''
+# Maybe not used anymore. Might be useful to create paths to SCRATCH, though...
+def create_file_paths(path_to_fly_folder, imaging_file_paths, filename, func_only=False):
+    """
+    Creates lists of path that can be feed as input/output to snakemake rules taking into account that
+    different fly_00X folder might have different channels!
+    :param path_to_fly_folder: a folder pointing to a fly, i.e. /Volumes/groups/trc/data/David/Bruker/preprocessed/fly_001
+    :param list_of_paths: a list of path created, usually created from fly_dirs_dict (e.g. fly_004_dirs.json)
+    :param filename: filename to append at the end. Can be nothing (i.e. for fictrac data).
+    :param func_only: Sometimes we need only paths from the functional channel, for example for z-scoring
+    :return: list of filepaths
+    """
+    list_of_filepaths = []
+    for current_path in imaging_file_paths:
+        if func_only:
+            if 'func' in current_path:
+                if CH1_EXISTS:
+                    list_of_filepaths.append(pathlib.Path(path_to_fly_folder, current_path, 'channel_1' + filename))
+                if CH2_EXISTS:
+                    list_of_filepaths.append(pathlib.Path(path_to_fly_folder, current_path, 'channel_2' + filename))
+                if CH3_EXISTS:
+                    list_of_filepaths.append(pathlib.Path(path_to_fly_folder, current_path, 'channel_3' + filename))
+        else:
+            if CH1_EXISTS:
+                list_of_filepaths.append(pathlib.Path(path_to_fly_folder,current_path,'channel_1' + filename))
+            if CH2_EXISTS:
+                list_of_filepaths.append(pathlib.Path(path_to_fly_folder,current_path,'channel_2' + filename))
+            if CH3_EXISTS:
+                list_of_filepaths.append(pathlib.Path(path_to_fly_folder,current_path,'channel_3' + filename))
+    return(list_of_filepaths)'''
 
 FICTRAC_PATHS = []
 for current_path in fictrac_file_paths:
@@ -250,6 +221,96 @@ else:
     CH3_EXISTS_MISC = False
 
 print("list_of_misc_channels" + repr(list_of_misc_channels))
+
+
+# Behaviors to correlate with neural activity
+corr_behaviors = ['dRotLabZneg', 'dRotLabZpos', 'dRotLabY']
+# This would be a list like this ['1', '2']
+
+atlas_path = pathlib.Path("brain_atlases/jfrc_atlas_from_brainsss.nii") #luke.nii"
+"""
+struct_channel=[]
+if 'channel_1' in STRUCTURAL_CHANNEL:
+    struct_channel.append('channel_1')
+elif 'channel_2' in STRUCTURAL_CHANNEL:
+    struct_channel.append('channel_2')
+elif 'channel_3' in STRUCTURAL_CHANNEL:
+    struct_channel.append('channel_3')
+if len(struct_channel)>1:
+    print('!!!!WARNING!!!')
+    print('The following channels are defined as anatomy channels: ')
+    print(struct_channel)
+    print('There should only be a single anatomy channel for the pipeline to work as expected.')
+
+"""
+####
+# probably not relevant - I think this is what bifrost does (better)
+##
+# list of paths for func2anat
+#imaging_paths_func2anat = []
+#anat_path_func2anat = None
+#for current_path in imaging_file_paths:
+    #if 'func' in current_path:
+    #    imaging_paths_func2anat.append(current_path.split('/imaging')[0])
+    # the folder name of the anatomical channel
+    #elif 'anat' in current_path:
+    #    if anat_path_func2anat is None:
+    #        anat_path_func2anat = current_path.split('/imaging')[0]
+    #    else:
+    #        print('!!!! WARNING: More than one folder with "anat"-string in fly to analyze. ')
+    #        print('!!!! func to anat function will likely give unexpected results! ')
+# the anatomical channel for func2anat
+#if 'channel_1' in ANATOMY_CHANNEL:
+#    file_path_func2anat_fixed = ['channel_1']
+#elif 'channel_2' in ANATOMY_CHANNEL:
+#    file_path_func2anat_fixed = ['channel_2']
+#elif 'channel_3' in ANATOMY_CHANNEL:
+#    file_path_func2anat_fixed = ['channel_3']
+
+##
+# list of paths for anat2atlas
+
+#imaging_paths_anat2atlas =[]
+#for current_path in imaging_file_paths:
+#    if 'anat' in current_path:
+#        # here it's ok to have more than one anatomy folder! However, script will break before...
+#        # but at least this part doesn't have to break!
+#        imaging_paths_anat2atlas.append(current_path.split('/imaging')[0])
+
+# the anatomical channel for func2anat
+#file_path_anat2atlas_moving = []
+#if 'channel_1' in ANATOMY_CHANNEL:
+#    file_path_anat2atlas_moving.append('channel_1')
+#elif 'channel_2' in ANATOMY_CHANNEL:
+#    file_path_anat2atlas_moving.append('channel_2')
+#elif 'channel_3' in ANATOMY_CHANNEL:
+#    file_path_anat2atlas_moving.append('channel_3')
+
+"""
+
+
+"""
+
+"""
+
+        # Below might be Bifrost territory - ignore for now.
+        ###
+        # func2anat
+        ###
+        expand(str(fly_folder_to_process_oak)
+               + "/{func2anat_paths}/warp/{func2anat_moving}_func-to-{func2anat_fixed}_anat.nii",
+               func2anat_paths=list_of_paths_func,
+               func2anat_moving=struct_channel,  # This is the channel which is designated as STRUCTURAL_CHANNEL
+               func2anat_fixed=struct_channel),
+
+        ##
+        # anat2atlas
+        ##
+        expand(str(fly_folder_to_process_oak)
+               + "/{anat2atlas_paths}/warp/{anat2atlas_moving}_-to-atlas.nii",
+               anat2atlas_paths=list_of_paths_anat,
+               anat2atlas_moving=struct_channel),
+"""
 
 
 rule all:
