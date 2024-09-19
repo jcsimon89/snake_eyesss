@@ -18,6 +18,10 @@ import skimage.filters
 import sklearn.feature_extraction
 import sklearn.cluster
 import os
+import multiprocessing
+import natsort
+import itertools
+import argparse
 
 # To import files (or 'modules') from the visanalysis folder, define path to scripts!
 # path of workflow i.e. /Users/jcsimon89/snake_visanalysis/workflow
@@ -32,6 +36,7 @@ sys.path.insert(0, parent_path)
 #from visanalysis import ____ 
 
 from brainsss import utils
+from brainsss import moco_utils
 
 ####################
 # GLOBAL VARIABLES #
@@ -47,99 +52,92 @@ WIDTH = 120  # This is used in all logging files
 DTYPE = np.float32
 # Dtype_calculation is what I explicity call e.g. during np.mean
 DTYPE_CACLULATIONS = np.float32
+type_of_transform = "SyN"
+flow_sigma = 3
+total_sigma = 0
+aff_metric = 'mattes'
 
-def moco_slice(
-    fly_directory,
-    path_to_read,
-    brain_master,
-    brain_mirror = 'none'
+TESTING = False
+
+def make_mean_brain(fly_directory,
+                    meanbrain_n_frames,
+                    path_to_read, path_to_save,
+                    rule_name
 ):
     """
-    :param fly_directory:
-    :param path_to_read:
+    Function to calculate meanbrain.
+    This is based on Bella's meanbrain script.
+    :param fly_directory: pathlib.Path object to a 'fly' folder such as '/oak/stanford/groups/trc/data/David/Bruker/preprocessed/fly_001'
+    :param meanbrain_n_frames: First n frames to average over when computing mean/fixed brain | Default None (average over all frames).
+    :param path_to_read: Full path as a list of pathlib.Path objects to the nii to be read
+    :param path_to_save: Full path as a list of pathlib.Path objects to the nii to be saved
+    :param rule_name: a string used to save the log file
     """
-    #####################
-    ### SETUP LOGGING ###
-    #####################
 
-    logfile = utils.create_logfile(fly_directory, function_name="moco_slice")
+    ####
+    # LOGGING
+    ####
+    logfile = utils.create_logfile(fly_directory, function_name=rule_name)
     printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
-    utils.print_function_start(logfile, "moco_slice")
+    #utils.print_function_start(logfile, rule_name)
 
-    ##########
-    ### Convert list of (sometimes empty) strings to pathlib.Path objects
-    ##########
+    #####
+    # CONVERT PATHS TO PATHLIB.PATH OBJECTS
+    #####
     path_to_read = utils.convert_list_of_string_to_posix_path(path_to_read)
-    #save_path_cluster_labels = utils.convert_list_of_string_to_posix_path(
-    #    save_path_cluster_labels
-    #)
-    #save_path_cluster_signals = utils.convert_list_of_string_to_posix_path(
-    #    save_path_cluster_signals
-    #)
+    path_to_save = utils.convert_list_of_string_to_posix_path(path_to_save)
 
-    # Can have more than one functional channel, hence loop!
-    for (
-        current_path_to_read,
-        current_path_to_save_labels,
-        current_path_to_save_signals,
-    ) in zip(path_to_read, save_path_cluster_labels, save_path_cluster_signals):
-        printlog("Loading " + repr(current_path_to_read))
-        ### LOAD BRAIN ###
+    for current_path_to_read, current_path_to_save in zip(path_to_read, path_to_save):
+        brain_data = None  # make sure the array is empty before starting another iteration!
+        ###
+        # Read imaging file
+        ###
+        printlog("Currently looking at: " + repr(current_path_to_read.name))
+        if current_path_to_read.suffix == ".nii":
+            # Doesn't load anything, just points to a given location
+            brain_proxy = nib.load(current_path_to_read)
+            # Load data, it's np.uint16 at this point, no point changing it.
+            brain_data = np.asarray(brain_proxy.dataobj, dtype=np.uint16)
+        elif current_path_to_read.suffix == ".h5":
+            # Original: Not great because moco brains are saved as float32
+            #with h5py.File(current_path_to_read, "r") as hf:
+            #    brain_data = np.asarray(hf["data"][:], dtype="uint16")
+            with h5py.File(current_path_to_read, "r") as hf:
+                brain_data = np.asarray(hf["data"][:], dtype=DTYPE)
+        else:
+            printlog("Current file has suffix " + current_path_to_read.suffix)
+            printlog("Can currently only handle .nii and .h5 files!")
+        # brain_data = np.asarray(nib.load(path_to_read).get_fdata(), dtype='uint16')
+        # get_fdata() loads data into memory and sometimes doesn't release it.
 
-        # brain_path = os.path.join(func_path, 'functional_channel_2_moco_zscore_highpass.h5')
-        t0 = time.time()
-        # with h5py.File(brain_path, 'r+') as h5_file:
-        #with h5py.File(current_path_to_read, "r+") as file:
-        #    # Load everything into memory, cast as float 32
-        #    brain = file["data"][:].astype(np.float32)
-        #    # Convert nan to num, ideally in place to avoid duplication of data
-        #    brain = np.nan_to_num(brain, copy=False)
-        #    # brain = np.nan_to_num(h5_file.get("data")[:].astype('float32'))
+        ###
+        # CREATE MEANBRAIN
+        ###
+        if meanbrain_n_frames is not None:
+            # average over first meanbrain_n_frames frames
+            meanbrain = np.mean(brain_data[..., : int(meanbrain_n_frames)], axis=-1, dtype=DTYPE_CACLULATIONS)
+        else:  # average over all frames
+            meanbrain = np.mean(brain_data, axis=-1, dtype=DTYPE_CACLULATIONS)
 
-        # Everything is only nifty in this pipeline! Define proxy
-        brain_master_data_proxy = nib.load(current_path_to_read)
-        # Load everything into memory, cast DTYPE
-        brain_master = np.asarray(brain_master_data_proxy.dataobj, dtype=DTYPE)
-        # Convert nan to num, ideally in place to avoid duplication of data
-        brain_master = np.nan_to_num(brain_master, copy=False)
+        printlog("Datatype of meanbrain: " + repr(meanbrain.dtype))
+        ###
+        # SAVE MEANBRAIN
+        ###
+        aff = np.eye(4)
+        meanbrain_nifty = nib.Nifti1Image(
+            meanbrain, aff
+        )
+        meanbrain_nifty.to_filename(current_path_to_save)
 
-        printlog("brain shape: {}".format(brain_master.shape))
-
-        # load mirror brain (if it exists)
-        if brain_mirror not 'none':
-            # Everything is only nifty in this pipeline! Define proxy
-            brain_mirror_data_proxy = nib.load(current_path_to_read)
-            # Load everything into memory, cast DTYPE
-            brain_mirror = np.asarray(brain_mirror_data_proxy.dataobj, dtype=DTYPE)
-            # Convert nan to num, ideally in place to avoid duplication of data
-            brain_mirror = np.nan_to_num(brain_mirror, copy=False)
-            printlog("brain mirror shape: {}".format(brain_mirror.shape))
-
-
-        printlog("load duration: {} sec".format(time.time() - t0))
-
-        ind_slice = brain_master.shape[2]
-
-        ### MAKE MOCO DIRECTORY ###
-
-        current_path_to_save_labels.parent.mkdir(exist_ok=True, parents=True)
-
-        nifti1_limit = (2**16 / 2)
-
-        ### RUN MOCO ###
-
-        for slice in range(ind_slice):
-
-            printlog("Running Moco on slice {}".format(slice))
-            
-            t0 = time.time()
-
-            brain_master_slice = brain_master[:,:,slice,:]
-
-            if np.any(np.array(brain_slice.shape) >= nifti1_limit):  # Need to save as nifti2
-                nib.save(nib.Nifti2Image(slice.astype('float32'), np.eye(4)), os.path.join(dir,savefile_master))
-            else:  # Nifti1 is OK
-                nib.save(nib.Nifti1Image(slice.astype('float32'), np.eye(4)), os.path.join(dir,savefile_master))
+        ###
+        # LOG SUCCESS
+        ###
+        fly_print = pathlib.Path(fly_directory).name
+        func_print = str(current_path_to_read).split("/imaging")[0].split("/")[-1]
+        # func_print = current_path_to_read.name.split('/')[-2]
+        printlog(
+            f"meanbrn | COMPLETED | {fly_print} | {func_print} | {brain_data.shape} ===> {meanbrain.shape}"
+        )
             
 def bleaching_qc(
     fly_directory,
@@ -253,6 +251,72 @@ def bleaching_qc(
     ###
     printlog(f"Prepared plot and saved as: {str(save_file):.>{WIDTH - 20}}")
 
+def fictrac_qc(
+        fly_directory,
+        fictrac_file_path,
+        fictrac_fps
+):
+    """
+    Perform fictrac quality control.
+    This is based on Bella's fictrac_qc.py  script.
+    :param fly_directory: a pathlib.Path object to a 'fly' folder such as '/oak/stanford/groups/trc/data/David/Bruker/preprocessed/fly_001'
+    :param fictrac_file_paths: a list of paths as pathlib.Path objects
+    :param fictrac_fps: frames per second of the videocamera recording the fictrac data, an integer
+    """
+    ####
+    # LOGGING
+    ####
+    logfile = utils.create_logfile(fly_directory, function_name="fictrac_qc")
+    printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
+    #utils.print_function_start(logfile, "fictrac_qc")
+
+    #####
+    # CONVERT PATHS TO PATHLIB.PATH OBJECTS
+    #####
+    fictrac_file_path = utils.convert_list_of_string_to_posix_path(fictrac_file_path)
+    # Organize path - there is only one, but it comes as a list
+    fictrac_file_path = fictrac_file_path[0]
+
+    ####
+    # QUALITY CONTROL
+    ####
+    #for current_file in fictrac_file_paths:
+    printlog("Currently looking at: " + repr(fictrac_file_path))
+    fictrac_raw = fictrac_utils.load_fictrac(fictrac_file_path)
+    # This should yield something like 'fly_001/func0/fictrac
+    full_id = ", ".join(fictrac_file_path.parts[-4:-2])
+
+    resolution = 10  # desired resolution in ms # Comes from Bella!
+    expt_len = fictrac_raw.shape[0] / fictrac_fps * 1000
+    behaviors = ["dRotLabY", "dRotLabZ"]
+    fictrac = {}
+    for behavior in behaviors:
+        if behavior == "dRotLabY":
+            short = "Y"
+        elif behavior == "dRotLabZ":
+            short = "Z"
+        fictrac[short] = fictrac_utils.smooth_and_interp_fictrac(
+            fictrac_raw, fictrac_fps, resolution, expt_len, behavior
+        )
+    time_for_plotting = np.arange(0, expt_len, resolution) # comes in ms
+
+    # Call these helper functions for plotting
+    fictrac_utils.make_2d_hist(
+        fictrac, fictrac_file_path, full_id,  fixed_crop=True
+    )
+    fictrac_utils.make_2d_hist(
+        fictrac, fictrac_file_path, full_id, fixed_crop=False
+    )
+    fictrac_utils.make_velocity_trace(
+        fictrac, fictrac_file_path, full_id, time_for_plotting,
+    )
+
+    ###
+    # LOG SUCCESS
+    ###
+    printlog(f"Prepared fictrac QC plot and saved in: {str(fictrac_file_path.parent):.>{WIDTH - 20}}")
+
+
 def background_subtract(
     input
 ):
@@ -272,3 +336,99 @@ def background_subtract(
     ### Convert list of (sometimes empty) strings to pathlib.Path objects
     ##########
     path_to_read = utils.convert_list_of_string_to_posix_path(path_to_read)
+
+
+def moco_slice(
+    index,
+    fixed_path,
+    moving_path,
+    functional_channel_paths,
+    temp_save_path,
+    fly_directory
+):
+    """
+    :param fly_directory:
+    :param path_to_read:
+    """
+    #####################
+    ### SETUP LOGGING ###
+    #####################
+
+    logfile = utils.create_logfile(fly_directory, function_name="moco_slice")
+    printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
+    utils.print_function_start(logfile, "moco_slice")
+
+    ##########
+    ### Convert list of (sometimes empty) strings to pathlib.Path objects
+    ##########
+    path_to_read = utils.convert_list_of_string_to_posix_path(path_to_read)
+    #save_path_cluster_labels = utils.convert_list_of_string_to_posix_path(
+    #    save_path_cluster_labels
+    #)
+    #save_path_cluster_signals = utils.convert_list_of_string_to_posix_path(
+    #    save_path_cluster_signals
+    #)
+
+    # Can have more than one functional channel, hence loop!
+    for (
+        current_path_to_read,
+        current_path_to_save_labels,
+        current_path_to_save_signals,
+    ) in zip(path_to_read, save_path_cluster_labels, save_path_cluster_signals):
+        printlog("Loading " + repr(current_path_to_read))
+        ### LOAD BRAIN ###
+
+        # brain_path = os.path.join(func_path, 'functional_channel_2_moco_zscore_highpass.h5')
+        t0 = time.time()
+        # with h5py.File(brain_path, 'r+') as h5_file:
+        #with h5py.File(current_path_to_read, "r+") as file:
+        #    # Load everything into memory, cast as float 32
+        #    brain = file["data"][:].astype(np.float32)
+        #    # Convert nan to num, ideally in place to avoid duplication of data
+        #    brain = np.nan_to_num(brain, copy=False)
+        #    # brain = np.nan_to_num(h5_file.get("data")[:].astype('float32'))
+
+        # Everything is only nifty in this pipeline! Define proxy
+        brain_master_data_proxy = nib.load(current_path_to_read)
+        # Load everything into memory, cast DTYPE
+        brain_master = np.asarray(brain_master_data_proxy.dataobj, dtype=DTYPE)
+        # Convert nan to num, ideally in place to avoid duplication of data
+        brain_master = np.nan_to_num(brain_master, copy=False)
+
+        printlog("brain shape: {}".format(brain_master.shape))
+
+        # load mirror brain (if it exists)
+        if brain_mirror not 'none':
+            # Everything is only nifty in this pipeline! Define proxy
+            brain_mirror_data_proxy = nib.load(current_path_to_read)
+            # Load everything into memory, cast DTYPE
+            brain_mirror = np.asarray(brain_mirror_data_proxy.dataobj, dtype=DTYPE)
+            # Convert nan to num, ideally in place to avoid duplication of data
+            brain_mirror = np.nan_to_num(brain_mirror, copy=False)
+            printlog("brain mirror shape: {}".format(brain_mirror.shape))
+
+
+        printlog("load duration: {} sec".format(time.time() - t0))
+
+        ind_slice = brain_master.shape[2]
+
+        ### MAKE MOCO DIRECTORY ###
+
+        current_path_to_save_labels.parent.mkdir(exist_ok=True, parents=True)
+
+        nifti1_limit = (2**16 / 2)
+
+        ### RUN MOCO ###
+
+        for slice in range(ind_slice):
+
+            printlog("Running Moco on slice {}".format(slice))
+            
+            t0 = time.time()
+
+            brain_master_slice = brain_master[:,:,slice,:]
+
+            if np.any(np.array(brain_slice.shape) >= nifti1_limit):  # Need to save as nifti2
+                nib.save(nib.Nifti2Image(slice.astype('float32'), np.eye(4)), os.path.join(dir,savefile_master))
+            else:  # Nifti1 is OK
+                nib.save(nib.Nifti1Image(slice.astype('float32'), np.eye(4)), os.path.join(dir,savefile_master))
