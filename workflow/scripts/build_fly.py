@@ -417,17 +417,19 @@ def copy_bruker_data(source, destination, folder_type, printlog, fly_dirs_dict=N
             # Special copy for photodiode since it goes in visual folder
             # To be tested once I have such data!!
             elif ".csv" in source_path.name:
-                source_name = "photodiode.csv"
+                # Create folder 'visual'
+                target_name = "photodiode.csv"
                 visual_folder_path = pathlib.Path(destination, "visual")
                 visual_folder_path.mkdir(exist_ok=True)
-                target_path = pathlib.Path(visual_folder_path, source_name)
+                target_path = pathlib.Path(visual_folder_path, target_name)
             # Special copy for visprotocol metadata since it goes in visual folder
             # To be tested once I have such data!!
             elif ".hdf5" in source_path.name:
                 # Create folder 'visual'
-                visual_folder_path = pathlib.Path(destination.name, "visual")
+                target_name = "stimulus.hdf5"
+                visual_folder_path = pathlib.Path(destination, "visual")
                 visual_folder_path.mkdir(exist_ok=True)
-                target_path = pathlib.Path(visual_folder_path, source_path.name)
+                target_path = pathlib.Path(visual_folder_path, target_name)
             # Rename to recording_metadata.xml if appropriate
             elif ".xml" in source_path.name and "Voltage" not in source_path.name:
                 target_name = "recording_metadata.xml"
