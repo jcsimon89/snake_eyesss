@@ -1,0 +1,15 @@
+These are my notes on what's going on with this profile.
+
+It's from here: https://github.com/Snakemake-Profiles/slurm
+
+without profiles, one would submit a job using slurm like this:
+
+> snakemake --cluster "sbatch --partition trc"
+
+Here, we can define default values such as partition in the settings.json under SBATCH_DEFAULTS
+for example like this:
+
+> "SBATCH_DEFAULTS": "--partition=trc --mail-type=ALL",
+
+(An alternative way would be to create a file with default settings as described here:
+http://bluegenes.github.io/Using-Snakemake_Profiles/)

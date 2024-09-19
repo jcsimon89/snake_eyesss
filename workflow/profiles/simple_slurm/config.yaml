@@ -1,0 +1,25 @@
+parameters:
+  user: dtadres
+
+cluster:
+  mkdir -p logs/`date +"%Y-%m-%d"` &&
+  sbatch
+    --partition={resources.partition}
+    --cpus-per-task={threads}
+    --job-name=smk-{rule}-{wildcards}
+    --output=logs/`date +"%Y-%m-%d"`/{rule}-`date +"%Y-%m-%d-%H%M%S"`.out
+    --mail-type=ALL
+default-resources:
+  - partition=trc
+restart-times: 0
+max-jobs-per-second: 10
+max-status-checks-per-second: 1
+local-cores: 1
+latency-wait: 60
+jobs: 100
+keep-going: True
+rerun-incomplete: false
+printshellcmds: True
+scheduler: greedy
+use-conda: false
+#tmpdir: $SCRATCH # might break things, check -yes breaks things!

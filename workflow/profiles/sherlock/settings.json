@@ -1,0 +1,5 @@
+{
+    "SBATCH_DEFAULTS": "partition=trc mail-type=ALL",
+    "CLUSTER_NAME": "",
+    "CLUSTER_CONFIG": ""
+}
