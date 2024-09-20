@@ -52,10 +52,6 @@ WIDTH = 120  # This is used in all logging files
 DTYPE = np.float32
 # Dtype_calculation is what I explicity call e.g. during np.mean
 DTYPE_CACLULATIONS = np.float32
-type_of_transform = "SyN"
-flow_sigma = 3
-total_sigma = 0
-aff_metric = 'mattes'
 
 TESTING = False
 
@@ -316,28 +312,6 @@ def fictrac_qc(
     ###
     printlog(f"Prepared fictrac QC plot and saved in: {str(fictrac_file_path.parent):.>{WIDTH - 20}}")
 
-
-def background_subtract(
-    input
-):
-    """
-    :param input:
-
-    """
-    #####################
-    ### SETUP LOGGING ###
-    #####################
-
-    logfile = utils.create_logfile(fly_directory, function_name="background_subtract")
-    printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
-    utils.print_function_start(logfile, "background_subtract")
-
-    ##########
-    ### Convert list of (sometimes empty) strings to pathlib.Path objects
-    ##########
-    path_to_read = utils.convert_list_of_string_to_posix_path(path_to_read)
-
-
 def moco_slice(
     index,
     fixed_path,
@@ -347,88 +321,106 @@ def moco_slice(
     fly_directory
 ):
     """
-    :param fly_directory:
-    :param path_to_read:
+    Loop doing the motion correction for a given set of index.
+    This is the function that is doing the heavy lifting of the multiprocessing
+    Saves the chunks as npy files in the 'temp_save_path' folder with the index contained
+    encoded in the filename.
+    :param index:
+    :return:
     """
-    #####################
-    ### SETUP LOGGING ###
-    #####################
 
-    logfile = utils.create_logfile(fly_directory, function_name="moco_slice")
-    printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
-    utils.print_function_start(logfile, "moco_slice")
+    # Keeping track of time
+    t_function_start = time.time()
+    # Load meanbrain (fixed) and put into ants format
+    fixed_proxy = nib.load(fixed_path)
+    # Load data to memory. Dtypes is a bit confusing here: Meanbrain comes as uint16...
+    fixed_data = fixed_proxy.dataobj
+    # However, ants seems to require float32 (I think)
+    fixed_ants = ants.from_numpy(np.asarray(fixed_data, dtype=np.float32))
 
-    ##########
-    ### Convert list of (sometimes empty) strings to pathlib.Path objects
-    ##########
-    path_to_read = utils.convert_list_of_string_to_posix_path(path_to_read)
-    #save_path_cluster_labels = utils.convert_list_of_string_to_posix_path(
-    #    save_path_cluster_labels
-    #)
-    #save_path_cluster_signals = utils.convert_list_of_string_to_posix_path(
-    #    save_path_cluster_signals
-    #)
+    # Load moving proxy in this process
+    moving_proxy = nib.load(moving_path)
 
-    # Can have more than one functional channel, hence loop!
-    for (
-        current_path_to_read,
-        current_path_to_save_labels,
-        current_path_to_save_signals,
-    ) in zip(path_to_read, save_path_cluster_labels, save_path_cluster_signals):
-        printlog("Loading " + repr(current_path_to_read))
-        ### LOAD BRAIN ###
+    # Load data in a given process
+    current_moving = moving_proxy.dataobj[:,:,:,index]
+    # Convert to ants images
+    moving_ants = ants.from_numpy(np.asarray(current_moving, dtype=np.float32))
 
-        # brain_path = os.path.join(func_path, 'functional_channel_2_moco_zscore_highpass.h5')
-        t0 = time.time()
-        # with h5py.File(brain_path, 'r+') as h5_file:
-        #with h5py.File(current_path_to_read, "r+") as file:
-        #    # Load everything into memory, cast as float 32
-        #    brain = file["data"][:].astype(np.float32)
-        #    # Convert nan to num, ideally in place to avoid duplication of data
-        #    brain = np.nan_to_num(brain, copy=False)
-        #    # brain = np.nan_to_num(h5_file.get("data")[:].astype('float32'))
+    #t0 = time.time()
+    # Perform the registration
+    moco = ants.registration(fixed_ants, moving_ants,
+                             type_of_transform=type_of_transform,
+                             flow_sigma=flow_sigma,
+                             total_sigma=total_sigma,
+                             aff_metric=aff_metric)
+    #print('Registration took ' + repr(time.time() - t0) + 's')
 
-        # Everything is only nifty in this pipeline! Define proxy
-        brain_master_data_proxy = nib.load(current_path_to_read)
-        # Load everything into memory, cast DTYPE
-        brain_master = np.asarray(brain_master_data_proxy.dataobj, dtype=DTYPE)
-        # Convert nan to num, ideally in place to avoid duplication of data
-        brain_master = np.nan_to_num(brain_master, copy=False)
+    # Save warped image in temp_save_path with index in filename.
+    np.save(pathlib.Path(temp_save_path, moving_path.name + 'index_'
+                         + str(index)),
+            moco["warpedmovout"].numpy())
 
-        printlog("brain shape: {}".format(brain_master.shape))
+    #t0 = time.time()
+    # Next, use the transform info for the functional image
+    transformlist = moco["fwdtransforms"]
 
-        # load mirror brain (if it exists)
-        if brain_mirror not 'none':
-            # Everything is only nifty in this pipeline! Define proxy
-            brain_mirror_data_proxy = nib.load(current_path_to_read)
-            # Load everything into memory, cast DTYPE
-            brain_mirror = np.asarray(brain_mirror_data_proxy.dataobj, dtype=DTYPE)
-            # Convert nan to num, ideally in place to avoid duplication of data
-            brain_mirror = np.nan_to_num(brain_mirror, copy=False)
-            printlog("brain mirror shape: {}".format(brain_mirror.shape))
+    # Unpack functional paths
+    if functional_channel_paths is None:
+        functional_path_one = None
+        functional_path_two = None
+    elif len(functional_channel_paths) == 1:
+        functional_path_one = functional_channel_paths[0]
+        functional_path_two = None
+    elif len(functional_channel_paths) == 2:
+        functional_path_one = functional_channel_paths[0]
+        functional_path_two = functional_channel_paths[1]
+    else:
+        # Fix this, should be identical to if!
+        functional_path_one = None
+        functional_path_two = None
+    if functional_path_one is not None:
+        # Load functional one proxy in this process
+        functional_one_proxy = nib.load(functional_path_one)
+        if functional_path_two is not None:
+            functional_two_proxy = nib.load(functional_path_two)
 
+    if functional_path_one is not None:
+        current_functional_one = functional_one_proxy.dataobj[:,:,:,index]
+        moving_frame_one_ants = ants.from_numpy(np.asarray(current_functional_one, dtype=np.float32))
+        # to motion correction for functional image
+        moving_frame_one_ants = ants.apply_transforms(fixed_ants, moving_frame_one_ants, transformlist)
+        # put moco functional image into preallocated array
+        #moco_functional_one[:, :, :, counter] = moving_frame_one_ants.numpy()
+        #print('apply transforms took ' + repr(time.time() - t0) + 's')
+        np.save(pathlib.Path(temp_save_path, functional_path_one.name + 'index_'
+                             + str(index)),
+                moving_frame_one_ants.numpy())
 
-        printlog("load duration: {} sec".format(time.time() - t0))
+        if functional_path_two is not None:
+            current_functional_two = functional_two_proxy.dataobj[:,:,:, index]
+            moving_frame_two_ants = ants.from_numpy(np.asarray(current_functional_two, dtype=np.float32))
+            moco_functional_two = ants.apply_transforms(fixed_ants, moving_frame_two_ants, transformlist)
+            #moco_functional_two[:,:,:, counter] = moco_functional_two.numpy()
+            np.save(pathlib.Path(temp_save_path, functional_path_two.name + 'index_'
+                                 + str(index)),
+                    moco_functional_two.numpy())
 
-        ind_slice = brain_master.shape[2]
+    #t0=time.time()
+    # delete writen files:
+    # Delete transform info - might be worth keeping instead of huge resulting file? TBD
+    for x in transformlist:
+        if ".mat" in x:
+            # Keep transform_matrix, I think this is used to make the plot
+            # called 'motion_correction.png'
+            temp = ants.read_transform(x)
+            #transform_matrix[counter, :] = temp.parameters
+            param_savename = pathlib.Path(temp_save_path, "motcorr_params" + 'index_'
+                                          + str(index))
+            np.save(param_savename, temp.parameters) # that's the transform_matrix in brainsss
 
-        ### MAKE MOCO DIRECTORY ###
-
-        current_path_to_save_labels.parent.mkdir(exist_ok=True, parents=True)
-
-        nifti1_limit = (2**16 / 2)
-
-        ### RUN MOCO ###
-
-        for slice in range(ind_slice):
-
-            printlog("Running Moco on slice {}".format(slice))
-            
-            t0 = time.time()
-
-            brain_master_slice = brain_master[:,:,slice,:]
-
-            if np.any(np.array(brain_slice.shape) >= nifti1_limit):  # Need to save as nifti2
-                nib.save(nib.Nifti2Image(slice.astype('float32'), np.eye(4)), os.path.join(dir,savefile_master))
-            else:  # Nifti1 is OK
-                nib.save(nib.Nifti1Image(slice.astype('float32'), np.eye(4)), os.path.join(dir,savefile_master))
+        # lets' delete all files created by ants - else we quickly create thousands of files!
+        pathlib.Path(x).unlink()
+    print('Motion correction for ' + moving_path.as_posix()
+          + ' at index ' + str(index) + ' took : '
+          + repr(round(time.time() - t_function_start, 1))
+          + 's\n')
