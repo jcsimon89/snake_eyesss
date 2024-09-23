@@ -140,23 +140,23 @@ def moco_slice(
             functional_two_proxy = nib.load(functional_path_two)
 
     if functional_path_one is not None:
-        current_functional_one = functional_one_proxy.dataobj[:,:,:,index]
+        current_functional_one = functional_one_proxy.dataobj[:,:,slice,index]
         moving_frame_one_ants = ants.from_numpy(np.asarray(current_functional_one, dtype=np.float32))
         # to motion correction for functional image
         moving_frame_one_ants = ants.apply_transforms(fixed_ants, moving_frame_one_ants, transformlist)
         # put moco functional image into preallocated array
         #moco_functional_one[:, :, :, counter] = moving_frame_one_ants.numpy()
         #print('apply transforms took ' + repr(time.time() - t0) + 's')
-        np.save(pathlib.Path(temp_save_path, functional_path_one.name + 'index_'
+        np.save(pathlib.Path(temp_save_path, functional_path_one.namen+ 'slice_' + str(slice)+ '_index_'
                              + str(index)),
                 moving_frame_one_ants.numpy())
 
         if functional_path_two is not None:
-            current_functional_two = functional_two_proxy.dataobj[:,:,:, index]
+            current_functional_two = functional_two_proxy.dataobj[:,:,slice, index]
             moving_frame_two_ants = ants.from_numpy(np.asarray(current_functional_two, dtype=np.float32))
             moco_functional_two = ants.apply_transforms(fixed_ants, moving_frame_two_ants, transformlist)
             #moco_functional_two[:,:,:, counter] = moco_functional_two.numpy()
-            np.save(pathlib.Path(temp_save_path, functional_path_two.name + 'index_'
+            np.save(pathlib.Path(temp_save_path, functional_path_two.name + 'slice_' + str(slice) + '_index_'
                                  + str(index)),
                     moco_functional_two.numpy())
 
@@ -169,14 +169,14 @@ def moco_slice(
             # called 'motion_correction.png'
             temp = ants.read_transform(x)
             #transform_matrix[counter, :] = temp.parameters
-            param_savename = pathlib.Path(temp_save_path, "motcorr_params" + 'index_'
+            param_savename = pathlib.Path(temp_save_path, "motcorr_params" + 'slice_' + str(slice) + '_index_'
                                           + str(index))
             np.save(param_savename, temp.parameters) # that's the transform_matrix in brainsss
 
         # lets' delete all files created by ants - else we quickly create thousands of files!
         pathlib.Path(x).unlink()
     print('Motion correction for ' + moving_path.as_posix()
-          + ' at index ' + str(index) + ' took : '
+          + 'at slice ' + str(slice) + ', at index ' + str(index) + ' took : '
           + repr(round(time.time() - t_function_start, 1))
           + 's\n')
 
@@ -201,14 +201,16 @@ def find_missing_temp_files(fixed_path,
     start_time = time.time()
     # A list to keep track of missing files!
     index_of_missing_files = []
-
+    slice_of_missing_files = []
+    
     index_tracker = 0
     for current_file in natsort.natsorted(temp_save_path.iterdir()):
         #print('Finding missing files: current_file ' + current_file.name)
         # Check if moving_path.name, for example channel_1.nii is in filename
         if '.npy' in current_file.name and moving_path.name in current_file.name:
-            # Extract index number
+            # Extract index number and slice number
             index = moco_utils.index_from_filename(current_file)
+            slice = moco_utils.slice_from_filename(current_file)
             if index == index_tracker:
                 # Great!
                 pass
@@ -217,6 +219,7 @@ def find_missing_temp_files(fixed_path,
                 while index > index_tracker:
                     print('Missing files: ' + repr(index_tracker))
                     index_of_missing_files.append(index_tracker)
+                    slice_of_missing_files.append(slice)
                     index_tracker+=1 #
             # Once index == index_tracker, add 1 to be prepared for the next loop!
             index_tracker+=1
