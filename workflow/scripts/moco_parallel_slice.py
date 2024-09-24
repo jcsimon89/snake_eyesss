@@ -147,7 +147,7 @@ def moco_slice(
         # put moco functional image into preallocated array
         #moco_functional_one[:, :, :, counter] = moving_frame_one_ants.numpy()
         #print('apply transforms took ' + repr(time.time() - t0) + 's')
-        np.save(pathlib.Path(temp_save_path, functional_path_one.namen+ 'slice_' + str(slice)+ '_index_'
+        np.save(pathlib.Path(temp_save_path, functional_path_one.name + 'slice_' + str(slice)+ '_index_'
                              + str(index)),
                 moving_frame_one_ants.numpy())
 
@@ -200,48 +200,21 @@ def find_missing_temp_files(fixed_path,
 
     start_time = time.time()
     # A list to keep track of missing files!
-    index_of_missing_files = []
-    slice_of_missing_files = []
-    
+    slice_and_index_of_missing_files = []
+
+    # Put moving anatomy image into a proxy for nibabel
+    moving_proxy = nib.load(moving_path)
+    # Read the header to get dimensions
+    brain_shape = moving_proxy.header.get_data_shape()
+    nslices = brain_shape[2] #assumes data is x,y,z,t
+
     index_tracker = 0
-    for current_file in natsort.natsorted(temp_save_path.iterdir()):
-        #print('Finding missing files: current_file ' + current_file.name)
-        # Check if moving_path.name, for example channel_1.nii is in filename
-        if '.npy' in current_file.name and moving_path.name in current_file.name:
-            # Extract index number and slice number
-            index = moco_utils.index_from_filename(current_file)
-            slice = moco_utils.slice_from_filename(current_file)
-            if index == index_tracker:
-                # Great!
-                pass
-            else:
-                # in case more than one file (e.g. 1 & 2) are missing!
-                while index > index_tracker:
-                    print('Missing files: ' + repr(index_tracker))
-                    index_of_missing_files.append(index_tracker)
-                    slice_of_missing_files.append(slice)
-                    index_tracker+=1 #
-            # Once index == index_tracker, add 1 to be prepared for the next loop!
-            index_tracker+=1
-    # it's possible that we are missing only functional files but not anatomical files.
-    # Also collect those
-    if functional_channel_paths is None:
-        functional_path_one = None
-        functional_path_two = None
-    elif len(functional_channel_paths) == 1:
-        functional_path_one = functional_channel_paths[0]
-        functional_path_two = None
-    elif len(functional_channel_paths) == 2:
-        functional_path_one = functional_channel_paths[0]
-        functional_path_two = functional_channel_paths[1]
-    else:
-        functional_path_one = None
-        functional_path_two = None
-    if functional_path_one is not None:
-        index_tracker = 0
+    for slice in range(nslices):
         for current_file in natsort.natsorted(temp_save_path.iterdir()):
-            if '.npy' in current_file.name and functional_path_one.name in current_file.name:
-                # Extract index number
+            #print('Finding missing files: current_file ' + current_file.name)
+            # Check if moving_path.name, for example channel_1.nii is in filename
+            if '.npy' in current_file.name and moving_path.name in current_file.name and 'slice_{}'.format(slice) in current_file.name:
+                # Extract index number and slice number
                 index = moco_utils.index_from_filename(current_file)
                 if index == index_tracker:
                     # Great!
@@ -249,48 +222,82 @@ def find_missing_temp_files(fixed_path,
                 else:
                     # in case more than one file (e.g. 1 & 2) are missing!
                     while index > index_tracker:
-                        index_of_missing_files.append(index_tracker)
-                        index_tracker += 1  #
+                        print('Missing files: ' + repr(index_tracker))
+                        slice_and_index_of_missing_files.append(tuple(slice,index_tracker))
+                        index_tracker+=1 #
                 # Once index == index_tracker, add 1 to be prepared for the next loop!
-                index_tracker += 1
-    if functional_path_two is not None:
-        index_tracker = 0
-        for current_file in natsort.natsorted(temp_save_path.iterdir()):
-            if '.npy' in current_file.name and functional_path_two.name in current_file.name:
-                # Extract index number
-                index = moco_utils.index_from_filename(current_file)
-                if index == index_tracker:
-                    # Great!
-                    pass
-                else:
-                    # in case more than one file (e.g. 1 & 2) are missing!
-                    while index > index_tracker:
-                        index_of_missing_files.append(index_tracker)
-                        index_tracker += 1  #
-                # Once index == index_tracker, add 1 to be prepared for the next loop!
-                index_tracker += 1
-                # remove duplicate entries
-    index_of_missing_files = np.unique(np.asarray(index_of_missing_files))
+                index_tracker+=1
+        # it's possible that we are missing only functional files but not anatomical files.
+        # Also collect those
+        if functional_channel_paths is None:
+            functional_path_one = None
+            functional_path_two = None
+        elif len(functional_channel_paths) == 1:
+            functional_path_one = functional_channel_paths[0]
+            functional_path_two = None
+        elif len(functional_channel_paths) == 2:
+            functional_path_one = functional_channel_paths[0]
+            functional_path_two = functional_channel_paths[1]
+        else:
+            functional_path_one = None
+            functional_path_two = None
+        if functional_path_one is not None:
+            index_tracker = 0
+            for current_file in natsort.natsorted(temp_save_path.iterdir()):
+                if '.npy' in current_file.name and functional_path_one.name in current_file.name:
+                    # Extract index number
+                    index = moco_utils.index_from_filename(current_file)
+                    if index == index_tracker:
+                        # Great!
+                        pass
+                    else:
+                        # in case more than one file (e.g. 1 & 2) are missing!
+                        while index > index_tracker:
+                            slice_and_index_of_missing_files.append(tuple(slice,index_tracker))
+                            index_tracker += 1  #
+                    # Once index == index_tracker, add 1 to be prepared for the next loop!
+                    index_tracker += 1
+        if functional_path_two is not None:
+            index_tracker = 0
+            for current_file in natsort.natsorted(temp_save_path.iterdir()):
+                if '.npy' in current_file.name and functional_path_two.name in current_file.name:
+                    # Extract index number
+                    index = moco_utils.index_from_filename(current_file)
+                    if index == index_tracker:
+                        # Great!
+                        pass
+                    else:
+                        # in case more than one file (e.g. 1 & 2) are missing!
+                        while index > index_tracker:
+                            slice_and_index_of_missing_files.append(tuple(slice,index_tracker))
+                            index_tracker += 1  #
+                    # Once index == index_tracker, add 1 to be prepared for the next loop!
+                    index_tracker += 1
+                    # remove duplicate entries
+        slice_and_index_of_missing_files = np.unique(np.asarray(slice_and_index_of_missing_files))
 
     # loop through index_of_missing_files. If it's an empty list, don't loop and skip
-    if len(index_of_missing_files) > 0:
+    if len(slice_and_index_of_missing_files) > 0:
         print('==========================================================================================')
         print('WARNING: Not all files that should have been created in the temp folder have been create')
         print('This might be due to a memory (RAM) error in some ants.registration calls.')
         print('Will now try to run the missing files but might run out of allocated time as this is done serially.')
         print('SUGGESTION: Increase available RAM for the motion correction call!')
         print('==========================================================================================')
-    for current_index in index_of_missing_files:
-        # Call motion_correction function on index of missing files
-        # THIS IS SLOW AS IT'S NOT PARALLELIZED. Hopefully this only is used
-        # in very rare circumstances.
-        print('Missing index currently working on: ' + str(current_index))
-        moco_slice(current_index,
-                          fixed_path,
-                          moving_path,
-                          functional_channel_paths,
-                          temp_save_path,
-                          fly_directory)
+        for i in range(len(slice_and_index_of_missing_files)):
+            # Call motion_correction function on index of missing files
+            # THIS IS SLOW AS IT'S NOT PARALLELIZED. Hopefully this only is used
+            # in very rare circumstances.
+            current_slice = slice_and_index_of_missing_files[i][0]
+            current_index = slice_and_index_of_missing_files[i][1]
+            print('Missing (slice,index) currently working on: (' + str(current_slice) + ',' + str(current_index) + ')')
+            moco_slice(current_index,
+                                current_slice,
+                                fixed_path,
+                                moving_path,
+                                functional_channel_paths,
+                                temp_save_path,
+                                fly_directory)
     print('Checking for missing files took: ' + repr(round(time.time() - start_time,2)))
 
 def combine_temp_files(moving_path,
@@ -321,34 +328,38 @@ def combine_temp_files(moving_path,
     moving_proxy = nib.load(moving_path)
     # Read the header to get dimensions
     brain_shape = moving_proxy.header.get_data_shape()
+    nslices = brain_shape[2]
     # Preallocate array for anatomy...
     stitched_anatomy_brain = np.zeros((brain_shape[0],brain_shape[1],
                                        brain_shape[2], brain_shape[3]),
                                       dtype=np.float32)
     # ...and transform matrix.
-    transform_matrix = np.zeros((brain_shape[3],12))
+    transform_matrix = np.zeros((nslices,brain_shape[3],12))
     # Loop through all files. Because it's sorted we don't have to worry about
     # the index!
     index_tracker = 0
     printlog('Start combining ' + moving_output_path.name)
-    for current_file in natsort.natsorted(temp_save_path.iterdir()):
-        # Check if moving_path.name, for example channel_1.nii is in filename
-        if '.npy' in current_file.name and moving_path.name in current_file.name:
-            # Extract index number
-            index = moco_utils.index_from_filename(current_file)
-            stitched_anatomy_brain[:,:,:,index] = np.load(current_file)
-            # Just a sanity check! E.g. for first image we expect '0'
-            if index_tracker != index:
-                print('There seems to be a problem with the temp files for: ' + repr(current_file))
-                print('Previous index was ' + str(index_tracker - 1))
-                print('Next index (based on filename) was ' + str(index))
+    
+    for slice in range(nslices):
+        for current_file in natsort.natsorted(temp_save_path.iterdir()):
+            # Check if moving_path.name, for example channel_1.nii is in filename
+            if '.npy' in current_file.name and moving_path.name in current_file.name and 'slice_{}'.format(slice) in current_file.name:
+                # Extract index number
+                index = moco_utils.index_from_filename(current_file)
+                stitched_anatomy_brain[:,:,slice,index] = np.load(current_file)
+                # Just a sanity check! E.g. for first image we expect '0'
+                if index_tracker != index:
+                    print('There seems to be a problem with the temp files for: ' + repr(current_file))
+                    print('Previous index was ' + str(index_tracker - 1))
+                    print('Current slice is {}'.format(slice))
+                    print('Next index (based on filename) was ' + str(index))
 
-            index_tracker += 1
+                index_tracker += 1
 
-        # and collect motcorr_params, this is tiny so no worries about space here
-        elif 'motcorr_params' in current_file.name:
-            index = moco_utils.index_from_filename(current_file)
-            transform_matrix[index,:] = np.load(current_file)
+            # and collect motcorr_params, this is tiny so no worries about space here
+            elif 'motcorr_params' in current_file.name and 'slice_{}'.format(slice) in current_file.name:
+                index = moco_utils.index_from_filename(current_file)
+                transform_matrix[slice,index,:] = np.load(current_file)
     # SAVE
     # we create a new subfolder called 'moco' where the file is saved
     # Not a great solution - the definition of the output file should happen in the snakefile, not hidden
@@ -400,16 +411,19 @@ def combine_temp_files(moving_path,
                                        brain_shape[2], brain_shape[3]),
                                       dtype=np.float32)
         index_tracker = 0
-        for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                if '.npy' in current_file.name and functional_path_one.name in current_file.name:
-                    index = moco_utils.index_from_filename(current_file)
-                    stitched_functional_one[:,:,:,index] = np.load(current_file)
-                    # Just a sanity check! E.g. for first image we expect '0'
-                    if index_tracker != index:
-                        print('There seems to be a problem with the temp files for: ' + str(current_file))
-                        print('Previous index was ' + str(index_tracker - 1))
-                        print('Next index (based on filename) was ' + str(index))
-                    index_tracker += 1
+        nslices = brain_shape[2]
+        for slice in range(nslices):
+            for current_file in natsort.natsorted(temp_save_path.iterdir()):
+                    if '.npy' in current_file.name and functional_path_one.name in current_file.nameand 'slice_{}'.format(slice) in current_file.name:
+                        index = moco_utils.index_from_filename(current_file)
+                        stitched_functional_one[:,:,slice,index] = np.load(current_file)
+                        # Just a sanity check! E.g. for first image we expect '0'
+                        if index_tracker != index:
+                            print('There seems to be a problem with the temp files for: ' + str(current_file))
+                            print('Previous index was ' + str(index_tracker - 1))
+                            print('Current slice is {}'.format(slice))
+                            print('Next index (based on filename) was ' + str(index))
+                        index_tracker += 1
 
         #savepath_func_one = pathlib.Path(savepath_root, functional_path_one.stem + '_moco.nii')
         #stitched_functional_one_nifty = nib.Nifti1Image(stitched_functional_one, aff)
@@ -430,16 +444,19 @@ def combine_temp_files(moving_path,
             # Collect data for second functional channel
             index_tracker = 0
             printlog('Start combining ' + functional_channel_output_paths[1].name)
-            for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                if '.npy' in current_file.name and functional_path_two.name in current_file.name:
-                    index = moco_utils.index_from_filename(current_file)
-                    stitched_functional_two[:, :, :, index] = np.load(current_file)
-                    # Just a sanity check! E.g. for first image we expect '0'
-                    if index_tracker != index:
-                        print('There seems to be a problem with the temp files for: ' + str(current_file))
-                        print('Previous index was ' + str(index_tracker - 1))
-                        print('Next index (based on filename) was ' + str(index))
-                    index_tracker += 1
+            nslices = brain_shape[2]
+            for slice in range(nslices):
+                for current_file in natsort.natsorted(temp_save_path.iterdir()):
+                    if '.npy' in current_file.name and functional_path_two.name in current_file.name and 'slice_{}'.format(slice) in current_file.name:
+                        index = moco_utils.index_from_filename(current_file)
+                        stitched_functional_two[:, :, slice, index] = np.load(current_file)
+                        # Just a sanity check! E.g. for first image we expect '0'
+                        if index_tracker != index:
+                            print('There seems to be a problem with the temp files for: ' + str(current_file))
+                            print('Previous index was ' + str(index_tracker - 1))
+                            print('Current slice is {}'.format(slice))
+                            print('Next index (based on filename) was ' + str(index))
+                        index_tracker += 1
             # Save the nifty file
             # stitched_functional_two_nifty = nib.Nifti1Image(stitched_functional_two, aff)
             # stitched_functional_two_nifty.to_filename(functional_channel_output_paths[1])
@@ -644,6 +661,12 @@ if __name__ == '__main__':
 
     # create an index going from [0,1,...,n]
     time_index = moco_utils.prepare_time_index(moving_path)
+    # Put moving anatomy image into a proxy for nibabel
+    moving_proxy = nib.load(moving_path)
+    # Read the header to get dimensions
+    brain_shape = moving_proxy.header.get_data_shape()
+    nslices = brain_shape[2] #assumes data is x,y,z,t
+
     print('Will perform motion correction on a total of ' + repr(len(time_index)) + ' volumes.')
     if TESTING:
         time_index = [0,1,2,3,4,5,6,7]
@@ -658,56 +681,60 @@ if __name__ == '__main__':
     child_processes = []
     # Define what the max number of processes is
     max_processes = cores
+
+    # Loop thorugh slices
+    for current_slice in range(nslices):
     # Loop through index, yield 0, 1 etc.
-    for current_index in time_index:
-        # Run until break
-        while True:
-            # Only fork a new process is there are less processes running than max_processes
-            if running_processes < max_processes:
-                # Define process: Target is a function, args are the arguments
-                p = multiprocessing.Process(target=moco_slice,
-                                            args=(current_index,
-                                                  fixed_path,
-                                                  moving_path,
-                                                  functional_channel_paths,
-                                                  temp_save_path,
-                                                  fly_directory))
-                # start process
-                p.start()
-                # To keep track of child processes, add to list
-                child_processes.append(p)
-                # to keep track of running_processes
-                running_processes += 1
-                counter += 1
-                # get out of the current 'while' loop and go back to the for loop
-                break
-            # Processor wait loop if we don't have running_processes < max_processes
-            else:
-                # Stay here until break is called
-                while True:
-                    # loop through the child_processes
-                    for current_child_process in range(len(child_processes)):
-                        # Check if process is still running
-                        if child_processes[current_child_process].is_alive():
-                            # Continue for loop (i.e. check next child_process)
-                            continue
-                        else:
-                            # If it's found that a child process isn't running anymore,
-                            # remove the item at the current index
-                            child_processes.pop(current_child_process)
-                            # Subtract running processes by one
-                            running_processes -= 1
-                            # and break the for loop
+        for current_index in time_index:
+            # Run until break
+            while True:
+                # Only fork a new process is there are less processes running than max_processes
+                if running_processes < max_processes:
+                    # Define process: Target is a function, args are the arguments
+                    p = multiprocessing.Process(target=moco_slice,
+                                                args=(current_index,
+                                                    current_slice,
+                                                    fixed_path,
+                                                    moving_path,
+                                                    functional_channel_paths,
+                                                    temp_save_path,
+                                                    fly_directory))
+                    # start process
+                    p.start()
+                    # To keep track of child processes, add to list
+                    child_processes.append(p)
+                    # to keep track of running_processes
+                    running_processes += 1
+                    counter += 1
+                    # get out of the current 'while' loop and go back to the for loop
+                    break
+                # Processor wait loop if we don't have running_processes < max_processes
+                else:
+                    # Stay here until break is called
+                    while True:
+                        # loop through the child_processes
+                        for current_child_process in range(len(child_processes)):
+                            # Check if process is still running
+                            if child_processes[current_child_process].is_alive():
+                                # Continue for loop (i.e. check next child_process)
+                                continue
+                            else:
+                                # If it's found that a child process isn't running anymore,
+                                # remove the item at the current index
+                                child_processes.pop(current_child_process)
+                                # Subtract running processes by one
+                                running_processes -= 1
+                                # and break the for loop
+                                break
+                        # We are here either because the for loop finished or becuse
+                        # it was found that a process is not running anymore.
+                        # Check if we have less running processes than max processes
+                        if running_processes < max_processes:
+                            # If yes, break this inner while loop and go back to the
+                            # outer while loop that keeps to start a new child process
                             break
-                    # We are here either because the for loop finished or becuse
-                    # it was found that a process is not running anymore.
-                    # Check if we have less running processes than max processes
-                    if running_processes < max_processes:
-                        # If yes, break this inner while loop and go back to the
-                        # outer while loop that keeps to start a new child process
-                        break
-                        # Else stay in this while loop and check again for processes
-                        # that are finished.
+                            # Else stay in this while loop and check again for processes
+                            # that are finished.
     print('Submitted all indeces. Waiting for remaining processes to complete')
     # wait for remaining processes to complete --> this is the same code as the
     # processor wait loop above
