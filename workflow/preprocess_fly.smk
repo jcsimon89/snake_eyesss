@@ -340,7 +340,7 @@ rule fly_builder_rule:
                                                  )
 
                                                 
-rule moco_slice:
+rule motion_correction_slice:
     # separate slices, 2d moco, restitch
     threads:
     resources:
@@ -351,7 +351,7 @@ rule moco_slice:
         except Exception as error_stack:
 
 rule background_subtract:
-    # run alex's line-by-line background subtraction on channel 2
+    # run alex's line-by-line background subtraction (on channel 2 only?)
     threads:
     resources:
     input:
