@@ -772,13 +772,26 @@ rule moco_mean_brain_rule_struct:
             utils.write_error(logfile=logfile,
                 error_stack=error_stack)
 
-rule background_subtract:
+rule background_subtract_func:
     # run alex's line-by-line background subtraction (on channel 2 only?)
-    threads:
-    resources:
+    threads: snake_utils.threads_per_memory
+    resources: mem_mb=snake_utils.mem_mb_times_input
     input:
+        # jcs run background_subtract on ch2 only?
+        #brain_paths_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_1.nii" if CH1_EXISTS_FUNC_MOCO else [],
+        brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        #brain_paths_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_3.nii" if CH3_EXISTS_FUNC_MOCO else [],
     output:
-    run:
-        try:
-        except Exception as error_stack:
+        #moco_path_ch1 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
+        moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        #moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
+        #par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/" #jcs other background subtract misc output files
+    shell: shell_python_command + " " + scripts_path + "/scripts/background_subtract.py "
+        "--fly_directory {fly_folder_to_process_oak} "
+        "--dataset_path {dataset_path} "
+        "--brain_paths_ch2 {input.brain_paths_ch2} "
+        "--FUNCTIONAL_CHANNELS {FUNCTIONAL_CHANNELS} "
+        "--moco_path_ch2 {output.moco_path_ch2} "
+        "--par_output {output.par_output} "
+
 
