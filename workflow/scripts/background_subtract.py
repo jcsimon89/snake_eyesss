@@ -101,12 +101,8 @@ class BgRemover3D:
         save_name = os.path.join(self.saving_dir, self.file_head+'_cleaned.nii')
         nib.Nifti1Image(self.out.astype('float32'), np.eye(4)).to_filename(save_name)
 
-img_paths = ['/oak/stanford/groups/trc/data/Jacob/ImagingData/Bruker/brainsss/wb_gflamp1_jrgeco1a_loom/fly_001/func_0/moco/functional_channel_2_moco.nii']
-
-for path in img_paths:
-    os.path.exists(path)
-
-    br = BgRemover3D(path, half_wid=5) #original setting: 20
+    path = moco_path_ch2
+    br = BgRemover3D(path, half_wid=20) #original setting: 20
     br.draw_bg()
     br.show_bg()
     br.remove_bg()
