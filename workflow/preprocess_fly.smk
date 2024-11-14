@@ -785,7 +785,7 @@ rule background_subtract_func:
         #moco_path_ch1 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
         moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
         #moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
-        #par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/" #jcs other background subtract misc output files
+        par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/" #jcs other background subtract misc output files
     shell: shell_python_command + " " + scripts_path + "/scripts/background_subtract.py "
         "--fly_directory {fly_folder_to_process_oak} "
         "--dataset_path {dataset_path} "
