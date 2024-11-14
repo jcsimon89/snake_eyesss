@@ -17,7 +17,7 @@ class BgRemover3D:
         self.make_savedir()
     
     def make_savedir(self):
-        working_dir = par_output
+        working_dir = os.path.dirname(self.path)
         saving_dir = working_dir
         if not os.path.exists(saving_dir):
             os.mkdir(saving_dir)
@@ -98,10 +98,10 @@ class BgRemover3D:
     
     def save_out(self):
         assert self.img.shape == self.out.shape
-        save_name = os.path.join(self.saving_dir, self.file_head+'_bg.nii')
+        save_name = moco_path_ch2
         nib.Nifti1Image(self.out.astype('float32'), np.eye(4)).to_filename(save_name)
 
-    path = moco_path_ch2
+    path = brain_paths_ch2
     br = BgRemover3D(path, half_wid=20) #original setting: 20
     br.draw_bg()
     br.show_bg()
