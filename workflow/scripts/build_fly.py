@@ -964,7 +964,7 @@ def add_fly_to_csv(import_folder, fly_folder, current_import_imaging_folder,
             # This should work if I don't move it out of that folder
             csv_path = pathlib.Path(fly_folder.parent, 'master_2P.csv')
             # Todo, could also have it pulled from github
-            empty_csv_path = pathlib.Path('/oak/stanford/groups/trc/data/David/shared_files/master_2P.csv')
+            empty_csv_path = pathlib.Path('C:/Users/jcsimon/Documents/GitHub/snake_eyesss/workflow/master_2P.csv')
             shutil.copyfile(empty_csv_path, csv_path)
             # Read csv, explicity state that first column is index
             csv_file = pd.read_csv(csv_path, index_col=0)
