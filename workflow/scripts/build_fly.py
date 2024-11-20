@@ -76,6 +76,19 @@ def fly_builder(autotransferred_stimpack,
             shutil.copyfile(fly_json_import_path, fly_json_fly_path)
 
             ###
+            # Copy the fly.hdf5 file
+            ###
+
+            for current_file in current_import_dir.iterdir():
+
+                if '.hdf5' in current_file.name:
+                    fly_hdf5_import_path = pathlib.Path(current_import_dir, current_file.name)
+                    print('Found fly hdf5 file: ' + repr(fly_hdf5_import_path))
+
+            fly_hdf5_path = pathlib.Path(current_dataset_dir, 'fly.hdf5')
+            shutil.copyfile(fly_hdf5_import_path, fly_hdf5_path)
+
+            ###
             # Add date & time to fly.json
             ###
             try:
