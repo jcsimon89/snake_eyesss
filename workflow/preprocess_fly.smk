@@ -87,11 +87,6 @@ for key in fly_dirs_dict:
         # This yields for example 'func1/fictrac/fictrac_behavior_data.dat'
         # With automatic stimpack transfer it'll return "/func0/stimpack/loco/fictrac_behavior_data.dat"
 
-if len(fictrac_file_paths>0):
-    fictrac_exists = True
-else:
-    fictrac_exists = False
-
 #######
 # Data path on OAK
 #######
