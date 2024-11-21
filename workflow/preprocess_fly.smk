@@ -87,7 +87,7 @@ for key in fly_dirs_dict:
         # This yields for example 'func1/fictrac/fictrac_behavior_data.dat'
         # With automatic stimpack transfer it'll return "/func0/stimpack/loco/fictrac_behavior_data.dat"
 
-if len(fictrac_file_paths>0):
+if len(fictrac_file_paths)>0:
     fictrac_exists = True
 else:
     fictrac_exists = False
@@ -127,17 +127,18 @@ def create_file_paths(path_to_fly_folder, imaging_file_paths, filename, func_onl
     return(list_of_filepaths)'''
 
 FICTRAC_PATHS = []
-for current_path in fictrac_file_paths:
-    FICTRAC_PATHS.append(current_path.split('/fictrac_behavior_data.dat')[0])
-# Fictrac data can be in different folders! For correlation, need to know the
-# relative path following 'funcX'.
-# IN ONE EXPERIMENT I ASSUME THAT THE FICTRAC STRUCTURE IS CONSISTENT!
-fictrac_rel_path_correlation = None
-current_fictrac_rel_path = FICTRAC_PATHS[0]
-# Remove the first folder which is going to be likely 'func0'
-rel_path_parts = pathlib.Path(current_fictrac_rel_path).parts[1::]
-# Then put the parts back together
-fictrac_rel_path_correlation = pathlib.Path(*rel_path_parts)
+if fictrac_exists
+    for current_path in fictrac_file_paths:
+        FICTRAC_PATHS.append(current_path.split('/fictrac_behavior_data.dat')[0])
+    # Fictrac data can be in different folders! For correlation, need to know the
+    # relative path following 'funcX'.
+    # IN ONE EXPERIMENT I ASSUME THAT THE FICTRAC STRUCTURE IS CONSISTENT!
+    fictrac_rel_path_correlation = None
+    current_fictrac_rel_path = FICTRAC_PATHS[0]
+    # Remove the first folder which is going to be likely 'func0'
+    rel_path_parts = pathlib.Path(current_fictrac_rel_path).parts[1::]
+    # Then put the parts back together
+    fictrac_rel_path_correlation = pathlib.Path(*rel_path_parts)
 
 # For wildcards we need lists of elements of the path for each folder.
 list_of_paths = []
