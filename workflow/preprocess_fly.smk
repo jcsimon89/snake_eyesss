@@ -536,52 +536,6 @@ rule bleaching_qc_rule_struct:
             print('Error with bleaching_qc' )
 
 
-    """
-    """
-    threads: snake_utils.threads_per_memory_less
-    resources:
-        mem_mb=snake_utils.mem_mb_less_times_input,  #snake_utils.mem_mb_times_input #mem_mb=snake_utils.mem_mb_more_times_input
-        runtime='10m' # should be enough
-    input:
-            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_struct}/imaging/channel_{meanbr_ch_struct}.nii"
-    output:
-            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_struct}/imaging/channel_{meanbr_ch_struct}_mean_struct.nii"
-    run:
-        try:
-            preprocessing.make_mean_brain(fly_directory=fly_folder_to_process_oak,
-                meanbrain_n_frames=meanbrain_n_frames,
-                path_to_read=input,
-                path_to_save=output,
-                rule_name='make_mean_brain_rule')
-        except Exception as error_stack:
-            logfile = utils.create_logfile(fly_folder_to_process_oak,function_name='ERROR_make_mean_brain')
-            utils.write_error(logfile=logfile,
-                error_stack=error_stack)
-
-
-    """
-    """
-    threads: snake_utils.threads_per_memory_less
-    resources:
-        mem_mb=snake_utils.mem_mb_less_times_input,  #snake_utils.mem_mb_times_input #mem_mb=snake_utils.mem_mb_more_times_input
-        runtime='10m' # should be enough
-    input:
-            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_struct}/imaging/channel_{meanbr_ch_struct}.nii"
-    output:
-            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_struct}/imaging/channel_{meanbr_ch_struct}_mean_struct.nii"
-    run:
-        try:
-            preprocessing.make_mean_brain(fly_directory=fly_folder_to_process_oak,
-                meanbrain_n_frames=meanbrain_n_frames,
-                path_to_read=input,
-                path_to_save=output,
-                rule_name='make_mean_brain_rule')
-        except Exception as error_stack:
-            logfile = utils.create_logfile(fly_folder_to_process_oak,function_name='ERROR_make_mean_brain')
-            utils.write_error(logfile=logfile,
-                error_stack=error_stack)
-
-
 rule make_mean_brain_rule_func:
     """
     Here it should be possible to parallelize quite easily as each input file creates
