@@ -1,4 +1,22 @@
+import natsort
+import pathlib
+import json
+import datetime
+scripts_path = workflow.basedir # Exposes path to this file
+from brainsss import utils
+from scripts import preprocessing
+from scripts import snake_utils
+import os
+import sys
+print(os.getcwd())
+current_user = config['user']
+settings = utils.load_user_settings(current_user)
+dataset_path = pathlib.Path(settings['dataset_path'])
 
+# On sherlock this is usually python3 but on a personal computer can be python
+shell_python_command = str(settings.get('shell_python_command', "python3"))
+print("shell_python_command" + shell_python_command)
+moco_temp_folder = str(settings.get('moco_temp_folder', "/scratch/groups/trc"))
 
 # Define path to imports to find fly.json!
 #fly_folder_to_process_oak = pathlib.Path(dataset_path,fly_folder_to_process)
