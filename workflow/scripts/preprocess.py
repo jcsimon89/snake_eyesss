@@ -36,7 +36,7 @@ sys.path.insert(0, parent_path)
 #from visanalysis import ____ 
 
 from brainsss import utils
-from brainsss import moco_utils
+#from brainsss import moco_utils
 
 ####################
 # GLOBAL VARIABLES #
