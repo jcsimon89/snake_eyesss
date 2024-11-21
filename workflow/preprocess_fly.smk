@@ -491,7 +491,7 @@ rule fictrac_qc_rule:
         str(fly_folder_to_process_oak) + "/{fictrac_paths}/fictrac_2d_hist_fixed.png"
     run:
         try:
-            preprocessing.fictrac_qc(fly_folder_to_process_oak,
+            preprocess.fictrac_qc(fly_folder_to_process_oak,
                                     fictrac_file_path= input,
                                     fictrac_fps=fictrac_fps # AUTOMATE THIS!!!! ELSE BUG PRONE!!!!
                                     )
@@ -515,7 +515,7 @@ rule bleaching_qc_rule_func:
         str(fly_folder_to_process_oak) +"/{bleaching_imaging_paths}/imaging/bleaching_func.png"
     run:
         try:
-            preprocessing.bleaching_qc(fly_directory=fly_folder_to_process_oak,
+            preprocess.bleaching_qc(fly_directory=fly_folder_to_process_oak,
                                         path_to_read=[input.brains_paths_ch1, input.brains_paths_ch2, input.brains_paths_ch3], #imaging_paths_by_folder_scratch, # {input} didn't work, I think because it destroyed the list of list we expect to see here #imaging_paths_by_folder_scratch,
                                         path_to_save=output, # can't use output, messes things up here! #imaging_paths_by_folder_oak
                                         #print_output = output
@@ -542,7 +542,7 @@ rule bleaching_qc_rule_struct:
         str(fly_folder_to_process_oak) +"/{bleaching_imaging_paths}/imaging/bleaching_struct.png"
     run:
         try:
-            preprocessing.bleaching_qc(fly_directory=fly_folder_to_process_oak,
+            preprocess.bleaching_qc(fly_directory=fly_folder_to_process_oak,
                                         path_to_read=[input.brains_paths_ch1, input.brains_paths_ch2, input.brains_paths_ch3], #imaging_paths_by_folder_scratch, # {input} didn't work, I think because it destroyed the list of list we expect to see here #imaging_paths_by_folder_scratch,
                                         path_to_save=output, # can't use output, messes things up here! #imaging_paths_by_folder_oak
                                         #print_output = output
@@ -586,7 +586,7 @@ rule make_mean_brain_rule_func:
             str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_func}/imaging/channel_{meanbr_ch_func}_mean_func.nii"
     run:
         try:
-            preprocessing.make_mean_brain(fly_directory=fly_folder_to_process_oak,
+            preprocess.make_mean_brain(fly_directory=fly_folder_to_process_oak,
                 meanbrain_n_frames=meanbrain_n_frames,
                 path_to_read=input,
                 path_to_save=output,
@@ -609,7 +609,7 @@ rule make_mean_brain_rule_struct:
             str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_struct}/imaging/channel_{meanbr_ch_struct}_mean_struct.nii"
     run:
         try:
-            preprocessing.make_mean_brain(fly_directory=fly_folder_to_process_oak,
+            preprocess.make_mean_brain(fly_directory=fly_folder_to_process_oak,
                 meanbrain_n_frames=meanbrain_n_frames,
                 path_to_read=input,
                 path_to_save=output,
@@ -712,7 +712,7 @@ rule moco_mean_brain_rule_func:
         str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_{meanbr_moco_ch_func}_moco_mean_func.nii"
     run:
         try:
-            preprocessing.make_mean_brain(fly_directory=fly_folder_to_process_oak,
+            preprocess.make_mean_brain(fly_directory=fly_folder_to_process_oak,
                                             meanbrain_n_frames=meanbrain_n_frames,
                                             path_to_read=input,
                                             path_to_save=output,
@@ -735,7 +735,7 @@ rule moco_mean_brain_rule_struct:
         str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_struct}/moco/channel_{meanbr_moco_ch_struct}_moco_mean_struct.nii"
     run:
         try:
-            preprocessing.make_mean_brain(fly_directory=fly_folder_to_process_oak,
+            preprocess.make_mean_brain(fly_directory=fly_folder_to_process_oak,
                                             meanbrain_n_frames=meanbrain_n_frames,
                                             path_to_read=input,
                                             path_to_save=output,
