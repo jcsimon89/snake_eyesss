@@ -414,7 +414,7 @@ def combine_temp_files(moving_path,
         nslices = brain_shape[2]
         for slice in range(nslices):
             for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                    if '.npy' in current_file.name and functional_path_one.name in current_file.nameand 'slice_{}'.format(slice) in current_file.name:
+                    if '.npy' in current_file.name and functional_path_one.name in current_file.name and 'slice_{}'.format(slice) in current_file.name:
                         index = moco_utils.index_from_filename(current_file)
                         stitched_functional_one[:,:,slice,index] = np.load(current_file)
                         # Just a sanity check! E.g. for first image we expect '0'
