@@ -127,7 +127,7 @@ def create_file_paths(path_to_fly_folder, imaging_file_paths, filename, func_onl
     return(list_of_filepaths)'''
 
 FICTRAC_PATHS = []
-if fictrac_exists
+if fictrac_exists:
     for current_path in fictrac_file_paths:
         FICTRAC_PATHS.append(current_path.split('/fictrac_behavior_data.dat')[0])
     # Fictrac data can be in different folders! For correlation, need to know the
