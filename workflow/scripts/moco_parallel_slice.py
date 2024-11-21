@@ -89,7 +89,7 @@ def moco_slice(
     # Load meanbrain (fixed) and put into ants format
     fixed_proxy = nib.load(fixed_path)
     # Load data to memory. Dtypes is a bit confusing here: Meanbrain comes as uint16...
-    fixed_data = fixed_proxy.dataobj
+    fixed_data = fixed_proxy.dataobj[:,:,slice]
     # However, ants seems to require float32 (I think)
     fixed_ants = ants.from_numpy(np.asarray(fixed_data, dtype=np.float32))
 
