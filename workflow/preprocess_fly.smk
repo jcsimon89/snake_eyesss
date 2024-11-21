@@ -13,6 +13,20 @@ current_user = config['user']
 settings = utils.load_user_settings(current_user)
 dataset_path = pathlib.Path(settings['dataset_path'])
 
+########################################################
+
+#>>>>
+fictrac_fps = 100 # AUTOMATE THIS!!!! ELSE FOR SURE A MISTAKE WILL HAPPEN IN THE FUTURE!!!!
+# TODO!!!! Instead of just believing a framerate, use the voltage signal recorded during imaging
+# that defines the position of a given frame!
+#<<<<
+
+# First n frames to average over when computing mean/fixed brain | Default None
+# (average over all frames).
+meanbrain_n_frames =  None
+
+##########################################################
+
 # On sherlock this is usually python3 but on a personal computer can be python
 shell_python_command = str(settings.get('shell_python_command', "python3"))
 print("shell_python_command" + shell_python_command)
