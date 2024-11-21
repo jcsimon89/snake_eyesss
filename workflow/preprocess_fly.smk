@@ -4,7 +4,7 @@ import json
 import datetime
 scripts_path = workflow.basedir # Exposes path to this file
 from brainsss import utils
-from scripts import preprocessing
+from scripts import preprocess
 from scripts import snake_utils
 import os
 import sys
