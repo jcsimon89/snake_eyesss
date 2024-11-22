@@ -781,9 +781,9 @@ rule background_subtract_func:
         #moco_path_ch1 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
         moco_path_ch2 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
         #moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
-        bg_img_before = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/ch2_stitched_moco_before_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_after = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/ch2_stitched_moco_after_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_selection = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/ch2_stitched_moco_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_img_before = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func_before_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_img_after = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func_after_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_img_selection = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
     shell: shell_python_command + " " + scripts_path + "/scripts/background_subtract.py "
         "--fly_directory {fly_folder_to_process_oak} "
         "--dataset_path {dataset_path} "
