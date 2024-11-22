@@ -479,7 +479,7 @@ rule all:
         # jcs run background_subtract on ch2 only?
         expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
                 moco_imaging_paths_func=list_of_paths_func),
-        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func.png" if CH2_EXISTS_FUNC_MOCO else [],
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func_before_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
                 moco_imaging_paths_func=list_of_paths_func),
         expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func_after_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
                 moco_imaging_paths_func=list_of_paths_func),
