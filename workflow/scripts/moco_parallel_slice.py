@@ -64,7 +64,7 @@ flow_sigma = 3
 total_sigma = 0
 aff_metric = 'mattes'
 
-TESTING = False
+TESTING = True
 
 def moco_slice(
     index,
@@ -147,7 +147,7 @@ def moco_slice(
         # put moco functional image into preallocated array
         #moco_functional_one[:, :, :, counter] = moving_frame_one_ants.numpy()
         #print('apply transforms took ' + repr(time.time() - t0) + 's')
-        np.save(pathlib.Path(temp_save_path, functional_path_one.name + 'slice_' + str(slice)+ '_index_'
+        np.save(pathlib.Path(temp_save_path, functional_path_one.name + '_slice' + str(slice)+ '_index'
                              + str(index)),
                 moving_frame_one_ants.numpy())
 
@@ -156,7 +156,7 @@ def moco_slice(
             moving_frame_two_ants = ants.from_numpy(np.asarray(current_functional_two, dtype=np.float32))
             moco_functional_two = ants.apply_transforms(fixed_ants, moving_frame_two_ants, transformlist)
             #moco_functional_two[:,:,:, counter] = moco_functional_two.numpy()
-            np.save(pathlib.Path(temp_save_path, functional_path_two.name + 'slice_' + str(slice) + '_index_'
+            np.save(pathlib.Path(temp_save_path, functional_path_two.name + '_slice' + str(slice) + '_index'
                                  + str(index)),
                     moco_functional_two.numpy())
 
@@ -169,7 +169,7 @@ def moco_slice(
             # called 'motion_correction.png'
             temp = ants.read_transform(x)
             #transform_matrix[counter, :] = temp.parameters
-            param_savename = pathlib.Path(temp_save_path, "motcorr_params" + 'slice_' + str(slice) + '_index_'
+            param_savename = pathlib.Path(temp_save_path, "motcorr_params" + '_slice' + str(slice) + '_index'
                                           + str(index))
             np.save(param_savename, temp.parameters) # that's the transform_matrix in brainsss
 
@@ -213,7 +213,7 @@ def find_missing_temp_files(fixed_path,
         for current_file in natsort.natsorted(temp_save_path.iterdir()):
             #print('Finding missing files: current_file ' + current_file.name)
             # Check if moving_path.name, for example channel_1.nii is in filename
-            if '.npy' in current_file.name and moving_path.name in current_file.name and 'slice_{}'.format(slice) in current_file.name:
+            if '.npy' in current_file.name and moving_path.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
                 # Extract index number and slice number
                 index = moco_utils.index_from_filename(current_file)
                 if index == index_tracker:
@@ -343,7 +343,7 @@ def combine_temp_files(moving_path,
     for slice in range(nslices):
         for current_file in natsort.natsorted(temp_save_path.iterdir()):
             # Check if moving_path.name, for example channel_1.nii is in filename
-            if '.npy' in current_file.name and moving_path.name in current_file.name and 'slice_{}'.format(slice) in current_file.name:
+            if '.npy' in current_file.name and moving_path.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
                 # Extract index number
                 index = moco_utils.index_from_filename(current_file)
                 stitched_anatomy_brain[:,:,slice,index] = np.load(current_file)
@@ -357,7 +357,7 @@ def combine_temp_files(moving_path,
                 index_tracker += 1
 
             # and collect motcorr_params, this is tiny so no worries about space here
-            elif 'motcorr_params' in current_file.name and 'slice_{}'.format(slice) in current_file.name:
+            elif 'motcorr_params' in current_file.name and 'slice{}'.format(slice) in current_file.name:
                 index = moco_utils.index_from_filename(current_file)
                 transform_matrix[slice,index,:] = np.load(current_file)
     # SAVE
@@ -414,7 +414,7 @@ def combine_temp_files(moving_path,
         nslices = brain_shape[2]
         for slice in range(nslices):
             for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                    if '.npy' in current_file.name and functional_path_one.name in current_file.name and 'slice_{}'.format(slice) in current_file.name:
+                    if '.npy' in current_file.name and functional_path_one.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
                         index = moco_utils.index_from_filename(current_file)
                         stitched_functional_one[:,:,slice,index] = np.load(current_file)
                         # Just a sanity check! E.g. for first image we expect '0'
@@ -447,7 +447,7 @@ def combine_temp_files(moving_path,
             nslices = brain_shape[2]
             for slice in range(nslices):
                 for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                    if '.npy' in current_file.name and functional_path_two.name in current_file.name and 'slice_{}'.format(slice) in current_file.name:
+                    if '.npy' in current_file.name and functional_path_two.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
                         index = moco_utils.index_from_filename(current_file)
                         stitched_functional_two[:, :, slice, index] = np.load(current_file)
                         # Just a sanity check! E.g. for first image we expect '0'
@@ -631,7 +631,7 @@ if __name__ == '__main__':
     ##################
 
     if TESTING:
-        temp_save_path = pathlib.Path('/Users/dtadres/Documents/test_folder')
+        temp_save_path = pathlib.Path('C:/Users/jcsimon/.snakemake/temp')
         if temp_save_path.is_dir():
             shutil.rmtree(temp_save_path)
 
