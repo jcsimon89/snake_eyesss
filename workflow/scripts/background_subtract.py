@@ -6,6 +6,7 @@ import nibabel as nib
 from skimage import io
 import matplotlib.pyplot as plt
 from scipy import signal
+import argparse
 
 class BgRemover3D:
 
@@ -98,10 +99,23 @@ class BgRemover3D:
     
     def save_out(self):
         assert self.img.shape == self.out.shape
-        save_name = moco_path_ch2
+        save_name = args.moco_path_ch2
         nib.Nifti1Image(self.out.astype('float32'), np.eye(4)).to_filename(save_name)
 
-path = brain_paths_ch2
+if __name__ == '__init__':
+    ############################
+    ### Organize shell input ###
+    ############################
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fly_directory", help="Folder of fly to save log")
+    parser.add_argument("--dataset_path", nargs="?", help="Folder pointing 'preprocessed'")
+    parser.add_argument("--brain_paths_ch2", nargs="?", help="Path to ch2 file, if it exists")
+    parser.add_argument("--FUNCTIONAL_CHANNELS", nargs="?", help="list with strings containing the functional channel")
+    parser.add_argument("--moco_path_ch2", nargs="?", help="Path to ch2 moco corrected file, if Ch2 exists")
+
+    args = parser.parse_args()
+    
+path = args.brain_paths_ch2
 br = BgRemover3D(path, half_wid=20) #original setting: 20
 br.draw_bg()
 br.show_bg()
