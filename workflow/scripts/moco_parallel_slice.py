@@ -111,7 +111,7 @@ def moco_slice(
     #print('Registration took ' + repr(time.time() - t0) + 's')
 
     # Save warped image in temp_save_path with index in filename.
-    np.save(pathlib.Path(temp_save_path, moving_path.name + 'slice_' + str(slice) + '_index_'
+    np.save(pathlib.Path(temp_save_path, moving_path.name + '_slice' + str(slice) + '_index'
                          + str(index)),
             moco["warpedmovout"].numpy())
 
@@ -334,7 +334,7 @@ def combine_temp_files(moving_path,
                                        brain_shape[2], brain_shape[3]),
                                       dtype=np.float32)
     # ...and transform matrix.
-    transform_matrix = np.zeros((nslices,brain_shape[3],12))
+    transform_matrix = np.zeros((nslices,brain_shape[3],6))
     # Loop through all files. Because it's sorted we don't have to worry about
     # the index!
     index_tracker = 0
