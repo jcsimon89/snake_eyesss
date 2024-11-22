@@ -45,7 +45,7 @@ def index_from_filename(filename):
     :param filename:
     :return:
     """
-    index = int(filename.name.split('index_')[-1].split('.npy')[0])
+    index = int(filename.name.split('index')[-1].split('.npy')[0])
 
     return(index)
 
