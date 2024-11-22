@@ -101,10 +101,10 @@ class BgRemover3D:
         save_name = moco_path_ch2
         nib.Nifti1Image(self.out.astype('float32'), np.eye(4)).to_filename(save_name)
 
-    path = brain_paths_ch2
-    br = BgRemover3D(path, half_wid=20) #original setting: 20
-    br.draw_bg()
-    br.show_bg()
-    br.remove_bg()
-    br.show_spectrum(fs=180)
-    br.save_out()
+path = brain_paths_ch2
+br = BgRemover3D(path, half_wid=20) #original setting: 20
+br.draw_bg()
+br.show_bg()
+br.remove_bg()
+br.show_spectrum(fs=180)
+br.save_out()
