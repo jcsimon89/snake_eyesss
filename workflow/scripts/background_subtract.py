@@ -11,6 +11,15 @@ import argparse
 class BgRemover3D:
 
     def __init__(self, img_path, half_wid=25):
+        # parse shell arguments
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--fly_directory", help="Folder of fly to save log")
+        parser.add_argument("--dataset_path", nargs="?", help="Folder pointing 'preprocessed'")
+        parser.add_argument("--brain_paths_ch2", nargs="?", help="Path to ch2 file, if it exists")
+        parser.add_argument("--FUNCTIONAL_CHANNELS", nargs="?", help="list with strings containing the functional channel")
+        parser.add_argument("--moco_path_ch2", nargs="?", help="Path to ch2 moco corrected file, if Ch2 exists")
+        args = parser.parse_args()
+
         self.path = img_path
         self.half_wid = half_wid
         # self.img shoud have dimension x, y, z, t here, x is along the line scan direction
@@ -102,19 +111,7 @@ class BgRemover3D:
         save_name = args.moco_path_ch2
         nib.Nifti1Image(self.out.astype('float32'), np.eye(4)).to_filename(save_name)
 
-if __name__ == '__init__':
-    ############################
-    ### Organize shell input ###
-    ############################
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--fly_directory", help="Folder of fly to save log")
-    parser.add_argument("--dataset_path", nargs="?", help="Folder pointing 'preprocessed'")
-    parser.add_argument("--brain_paths_ch2", nargs="?", help="Path to ch2 file, if it exists")
-    parser.add_argument("--FUNCTIONAL_CHANNELS", nargs="?", help="list with strings containing the functional channel")
-    parser.add_argument("--moco_path_ch2", nargs="?", help="Path to ch2 moco corrected file, if Ch2 exists")
 
-    args = parser.parse_args()
-    
 path = args.brain_paths_ch2
 br = BgRemover3D(path, half_wid=20) #original setting: 20
 br.draw_bg()
