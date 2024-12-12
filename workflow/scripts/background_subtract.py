@@ -31,7 +31,7 @@ def BgRemover3D(args, half_wid=20):
 
     path = args.brain_paths_ch2
     #img shoud have dimension x, y, z, t here, x is along the line scan direction
-    img = np.asarray(nib.load(path).get_data().squeeze(), dtype='float32')
+    img = np.asarray(nib.load(path).get_fdata().squeeze(), dtype='float32')
     dir = os.path.dirname(path)
     file_head = path.split('.')[0].split('/')[-1]
     
