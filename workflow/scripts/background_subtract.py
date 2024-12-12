@@ -1,6 +1,6 @@
 import os
 import glob
-
+scripts_path = workflow.basedir # Exposes path to this file
 import numpy as np
 import nibabel as nib
 from skimage import io
