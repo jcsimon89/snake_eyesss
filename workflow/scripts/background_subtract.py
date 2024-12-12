@@ -7,8 +7,16 @@ from skimage import io
 import matplotlib.pyplot as plt
 from scipy import signal
 import argparse
+from brainsss import utils
 
 def BgRemover3D(args, half_wid=20):
+    
+    # LOGGING
+    ####
+    logfile = utils.create_logfile(args.fly_directory, function_name="background_subtract_func")
+    printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
+    #utils.print_function_start(logfile, rule_name)
+
     path = args.brain_paths_ch2
     #img shoud have dimension x, y, z, t here, x is along the line scan direction
     img = np.asarray(nib.load(path).get_data().squeeze(), dtype='float32')
