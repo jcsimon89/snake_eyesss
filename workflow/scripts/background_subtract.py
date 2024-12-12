@@ -25,7 +25,7 @@ def BgRemover3D(args, half_wid=20):
     
     # LOGGING
     ####
-    logfile = utils.create_logfile(args.fly_directory, function_name="background_subtract_func")
+    logfile = utils.create_logfile(pathlib.Path(args.fly_directory), function_name="background_subtract_func")
     printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
     #utils.print_function_start(logfile, rule_name)
 
