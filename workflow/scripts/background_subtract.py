@@ -80,6 +80,12 @@ def BgRemover3D(args, half_wid=20):
             out[:, ind_y, ind_z, :] = patch
     out = np.moveaxis(out, (0,1,2,3), (3,1,2,0))
     printlog('done with background removal')
+
+
+    ### save after
+    plt.savefig(os.path.join(dir, file_head +'_after_removal.png'))
+    plt.close()
+    
     ### show spectrum ???
     # half_wid_test = 5
     # half_y_test = 15 
