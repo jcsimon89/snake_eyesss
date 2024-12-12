@@ -14,6 +14,7 @@ import pathlib
 scripts_path = pathlib.Path(
     __file__
 ).parent.resolve()
+print("scripts path: " + scripts_path)
 sys.path.insert(0, pathlib.Path(scripts_path, "workflow"))
 
 from brainsss import utils
