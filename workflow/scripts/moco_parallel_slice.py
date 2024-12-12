@@ -64,7 +64,7 @@ flow_sigma = 3
 total_sigma = 0
 aff_metric = 'mattes'
 
-TESTING = True
+TESTING = False
 
 def moco_slice(
     index,
