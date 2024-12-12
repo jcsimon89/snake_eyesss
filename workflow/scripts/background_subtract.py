@@ -41,6 +41,7 @@ def BgRemover3D(args, half_wid=20):
     plt.close()
 
     ### draw bg
+    printlog('starting draw bg')
     wid = 2*half_wid
     kernel = np.ones(wid)/wid
     template = np.mean(img, axis=-1)
@@ -55,6 +56,7 @@ def BgRemover3D(args, half_wid=20):
         bg_ind.append(bg_ind_tmp)
     
     ### show bg
+    printlog('starting show bg')
     show_bg = np.mean(img, axis=-1)
     mv = np.round(np.max(show_bg))
     show_bg = np.moveaxis(show_bg, (0, 2), (2, 0))
@@ -66,7 +68,7 @@ def BgRemover3D(args, half_wid=20):
     io.imsave(selection_save_name, np.round(show_bg).astype('int16'))
     
     ### remove bg
-    print('starting background removal')
+    printlog('starting background removal')
     img_temp = np.moveaxis(img, (0,1,2,3), (3,1,2,0))
     out = np.zeros_like(img_temp)
     for ind_y in range(img_temp.shape[1]):
@@ -77,7 +79,7 @@ def BgRemover3D(args, half_wid=20):
             patch = patch-bg[None].T
             out[:, ind_y, ind_z, :] = patch
     out = np.moveaxis(out, (0,1,2,3), (3,1,2,0))
-    print('done with background removal')
+    printlog('done with background removal')
     ### show spectrum ???
     # half_wid_test = 5
     # half_y_test = 15 
@@ -108,7 +110,7 @@ def BgRemover3D(args, half_wid=20):
     save_name = args.moco_path_ch2
     print("save_name: " + repr(save_name))
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
-
+    printlog('done')
 if __name__ == '__main__':
     # parse shell arguments
     parser = argparse.ArgumentParser()
