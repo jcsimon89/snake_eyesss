@@ -40,7 +40,23 @@ def BgRemover3D(args, half_wid=20):
     dir = os.path.dirname(path)
     file_head = path.split('.')[0].split('/')[-1]
     
-    ### save before
+    # save before fig
+    half_wid = 5
+    half_y = 15 
+    fs = 180
+    kernel2d = np.ones((half_wid*2, half_y*2))/(4*half_wid*half_y)
+    conv_template = signal.convolve2d(img.mean(-1).mean(-1), kernel2d, boundary='symm', mode='valid')
+    test_x, test_y = np.unravel_index(np.argmin(conv_template), conv_template.shape)
+    test_x += half_wid
+    test_y += half_y
+    
+    test_patch = img[test_x-half_wid:test_x+half_wid, test_y-half_y:test_y+half_y, :, :]
+    test = test_patch.mean(axis=(0,1))
+    test = test.flatten(order='F') 
+    test = (test-test.mean())/test.std()
+    f, Pxx_den = signal.periodogram(test, fs)
+    plt.semilogy(f, Pxx_den)
+    plt.ylim([1e-7, 1000])
     plt.savefig(os.path.join(dir, file_head +'_before_removal.png'))
     plt.close()
 
@@ -86,7 +102,15 @@ def BgRemover3D(args, half_wid=20):
     printlog('done with background removal')
 
 
+
     ### save after
+    test_patch = out[test_x-half_wid:test_x+half_wid, test_y-half_y:test_y+half_y, :, :]
+    test = test_patch.mean(axis=(0,1))
+    test = test.flatten(order='F') 
+    test = (test-test.mean())/test.std()
+    f, Pxx_den = signal.periodogram(test, fs)
+    plt.semilogy(f, Pxx_den)
+    plt.ylim([1e-7, 1000])
     plt.savefig(os.path.join(dir, file_head +'_after_removal.png'))
     plt.close()
     
@@ -121,7 +145,7 @@ def BgRemover3D(args, half_wid=20):
     print("save_name: " + repr(save_name))
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
     printlog('done')
-    
+
 if __name__ == '__main__':
     # parse shell arguments
     parser = argparse.ArgumentParser()
