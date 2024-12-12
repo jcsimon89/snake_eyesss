@@ -790,6 +790,5 @@ rule background_subtract_func:
         "--brain_paths_ch2 {input.brain_paths_ch2} "
         "--FUNCTIONAL_CHANNELS {FUNCTIONAL_CHANNELS} "
         "--moco_path_ch2 {output.moco_path_ch2} "
-        "--verbose"
 
 
