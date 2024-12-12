@@ -15,10 +15,8 @@ import traceback
 scripts_path = pathlib.Path(
     __file__
 ).parent.resolve()
-print("scripts path: " + repr(scripts_path))
 workflow_path = pathlib.Path(scripts_path).parent
 sys.path.insert(0, os.path.join(workflow_path))
-print("sys path: " + repr(sys.path))
 
 from brainsss import utils
 
@@ -61,7 +59,6 @@ def BgRemover3D(args, half_wid=20):
     plt.close()
 
     ### draw bg
-    printlog('starting draw bg')
     wid = 2*half_wid
     kernel = np.ones(wid)/wid
     template = np.mean(img, axis=-1)
@@ -76,7 +73,6 @@ def BgRemover3D(args, half_wid=20):
         bg_ind.append(bg_ind_tmp)
     
     ### show bg
-    printlog('starting show bg')
     show_bg = np.mean(img, axis=-1)
     mv = np.round(np.max(show_bg))
     show_bg = np.moveaxis(show_bg, (0, 2), (2, 0))
@@ -88,7 +84,6 @@ def BgRemover3D(args, half_wid=20):
     io.imsave(selection_save_name, np.round(show_bg).astype('int16'))
     
     ### remove bg
-    printlog('starting background removal')
     img_temp = np.moveaxis(img, (0,1,2,3), (3,1,2,0))
     out = np.zeros_like(img_temp)
     for ind_y in range(img_temp.shape[1]):
@@ -99,9 +94,6 @@ def BgRemover3D(args, half_wid=20):
             patch = patch-bg[None].T
             out[:, ind_y, ind_z, :] = patch
     out = np.moveaxis(out, (0,1,2,3), (3,1,2,0))
-    printlog('done with background removal')
-
-
 
     ### save after
     test_patch = out[test_x-half_wid:test_x+half_wid, test_y-half_y:test_y+half_y, :, :]
@@ -113,25 +105,6 @@ def BgRemover3D(args, half_wid=20):
     plt.ylim([1e-7, 1000])
     plt.savefig(os.path.join(dir, file_head +'_after_removal.png'))
     plt.close()
-    
-    ### show spectrum ???
-    # half_wid_test = 5
-    # half_y_test = 15 
-    # kernel2d = np.ones((half_wid_test*2, half_y_test*2))/(4*half_wid_test*half_y_test)
-    # conv_template = signal.convolve2d(img.mean(-1).mean(-1), kernel2d, boundary='symm', mode='valid')
-    # test_x, test_y = np.unravel_index(np.argmin(conv_template), conv_template.shape)
-    # test_x += half_wid_test
-    # test_y += half_y_test
-    # test_patch = self.img[test_x-half_wid:test_x+half_wid, test_y-half_y:test_y+half_y, :, :]
-    # test = test_patch.mean(axis=(0,1))
-    # test = test.flatten(order='F') 
-    # test = (test-test.mean())/test.std()
-    # f, Pxx_den = signal.periodogram(test, fs)
-    # plt.semilogy(f, Pxx_den)
-    # plt.ylim([1e-7, 1000])
-
-    #def show_spectrum(self, fs=180):
-
 
     ### save out
     try:
@@ -142,9 +115,7 @@ def BgRemover3D(args, half_wid=20):
                 printlog(traceback.format_exc())
     
     save_name = args.moco_path_ch2
-    print("save_name: " + repr(save_name))
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
-    printlog('done')
 
 if __name__ == '__main__':
     # parse shell arguments
