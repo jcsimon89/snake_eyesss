@@ -15,7 +15,8 @@ scripts_path = pathlib.Path(
     __file__
 ).parent.resolve()
 print("scripts path: " + repr(scripts_path))
-sys.path.insert(0, pathlib.Path(scripts_path, "workflow"))
+sys.path.remove("scripts")
+sys.path.insert(0, pathlib.Path(scripts_path, "brainsss"))
 print("sys path: " + repr(sys.path))
 
 from brainsss import utils
