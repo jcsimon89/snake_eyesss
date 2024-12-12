@@ -1,12 +1,21 @@
 import os
 import glob
-scripts_path = workflow.basedir # Exposes path to this file
 import numpy as np
 import nibabel as nib
 from skimage import io
 import matplotlib.pyplot as plt
 from scipy import signal
 import argparse
+import sys
+import pathlib
+
+# To import files (or 'modules') from the brainsss folder, define path to scripts!
+# path of workflow i.e. /Users/dtadres/snake_brainsss/workflow
+scripts_path = pathlib.Path(
+    __file__
+).parent.resolve()
+sys.path.insert(0, pathlib.Path(scripts_path, "workflow"))
+
 from brainsss import utils
 
 def BgRemover3D(args, half_wid=20):
