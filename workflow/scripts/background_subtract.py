@@ -31,8 +31,12 @@ def BgRemover3D(args, half_wid=20):
     #utils.print_function_start(logfile, rule_name)
 
     path = args.brain_paths_ch2
+    
     #img shoud have dimension x, y, z, t here, x is along the line scan direction
-    img = np.asarray(nib.load(path).get_fdata().squeeze(), dtype='float32')
+    # Doesn't load anything, just points to a given location
+    img_proxy = nib.load(path)
+    # Load data, it's float32 at this point
+    img = np.asarray(img_proxy.dataobj, dtype='float32')
     dir = os.path.dirname(path)
     file_head = path.split('.')[0].split('/')[-1]
     
@@ -117,6 +121,7 @@ def BgRemover3D(args, half_wid=20):
     print("save_name: " + repr(save_name))
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
     printlog('done')
+    
 if __name__ == '__main__':
     # parse shell arguments
     parser = argparse.ArgumentParser()
