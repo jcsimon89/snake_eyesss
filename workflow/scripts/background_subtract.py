@@ -119,8 +119,3 @@ if __name__ == '__main__':
 
     BgRemover3D(args, half_wid=20) #original setting: 20
 
-    br.draw_bg()
-    br.show_bg()
-    br.remove_bg()
-    br.show_spectrum(fs=180)
-    br.save_out()
