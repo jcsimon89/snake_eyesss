@@ -8,6 +8,7 @@ from scipy import signal
 import argparse
 import sys
 import pathlib
+import traceback
 
 # To import files (or 'modules') from the brainsss folder, define path to scripts!
 # path of workflow i.e. /Users/dtadres/snake_brainsss/workflow
@@ -65,12 +66,12 @@ def BgRemover3D(args, half_wid=20):
     io.imsave(selection_save_name, np.round(show_bg).astype('int16'))
     
     ### remove bg
-    img = np.moveaxis(img, (0,1,2,3), (3,1,2,0))
-    out = np.zeros_like(img)
-    for ind_y in range(img.shape[1]):
-        for ind_z in range(img.shape[2]):
-            patch = img[:, ind_y, ind_z, :]
-            bg_patch = img[:, ind_y, ind_z, bg_ind[ind_z][ind_y][0]:bg_ind[ind_z][ind_y][1]]
+    img_temp = np.moveaxis(img, (0,1,2,3), (3,1,2,0))
+    out = np.zeros_like(img_temp)
+    for ind_y in range(img_temp.shape[1]):
+        for ind_z in range(img_temp.shape[2]):
+            patch = img_temp[:, ind_y, ind_z, :]
+            bg_patch = img_temp[:, ind_y, ind_z, bg_ind[ind_z][ind_y][0]:bg_ind[ind_z][ind_y][1]]
             bg = bg_patch.mean(axis=-1)
             patch = patch-bg[None].T
             out[:, ind_y, ind_z, :] = patch
@@ -96,8 +97,13 @@ def BgRemover3D(args, half_wid=20):
 
 
     ### save out
-
-    assert img.shape == out.shape
+    try:
+        assert img.shape == out.shape
+    except Exception as e:
+                printlog(str(e))
+                printlog(str(e))
+                printlog(traceback.format_exc())
+    
     save_name = args.moco_path_ch2
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
 
