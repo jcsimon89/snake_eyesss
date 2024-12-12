@@ -66,6 +66,7 @@ def BgRemover3D(args, half_wid=20):
     io.imsave(selection_save_name, np.round(show_bg).astype('int16'))
     
     ### remove bg
+    print('starting background removal')
     img_temp = np.moveaxis(img, (0,1,2,3), (3,1,2,0))
     out = np.zeros_like(img_temp)
     for ind_y in range(img_temp.shape[1]):
@@ -76,7 +77,7 @@ def BgRemover3D(args, half_wid=20):
             patch = patch-bg[None].T
             out[:, ind_y, ind_z, :] = patch
     out = np.moveaxis(out, (0,1,2,3), (3,1,2,0))
-    
+    print('done with background removal')
     ### show spectrum ???
     # half_wid_test = 5
     # half_y_test = 15 
