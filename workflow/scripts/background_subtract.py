@@ -105,6 +105,7 @@ def BgRemover3D(args, half_wid=20):
                 printlog(traceback.format_exc())
     
     save_name = args.moco_path_ch2
+    print("save_name: " + repr(save_name))
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
 
 if __name__ == '__main__':
