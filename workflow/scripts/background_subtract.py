@@ -97,8 +97,13 @@ def BgRemover3D(args, half_wid=20):
 
 
     ### save out
-
-    assert img.shape == out.shape
+    try:
+        assert img.shape == out.shape
+    except Exception as e:
+                printlog(str(e))
+                printlog(str(e))
+                printlog(traceback.format_exc())
+    
     save_name = args.moco_path_ch2
     print("save_name: " + repr(save_name))
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
