@@ -273,7 +273,7 @@ def copy_fly(import_dir,
                 imaging_destination.mkdir(parents=True, exist_ok=True)
                 copy_bruker_data(
                     current_import_imaging_folder, imaging_destination, "func", printlog
-                )
+                ) # NOTE: also copies visual stim and voltageoutput/recording files!
                 # Update fly_dirs_dict
                 current_fly_dir_dict = str(imaging_destination).split(
                     imaging_destination.parents[1].name
@@ -315,12 +315,7 @@ def copy_fly(import_dir,
                         printlog("Could not copy fictrac data because of error:")
                         printlog(str(e))
                         printlog(traceback.format_exc())
-                # Copy visual data based on timestamps, and create visual.json
-                try:
-                    copy_visual(current_dataset_folder, printlog)
-                except Exception as e:
-                    printlog("Could not copy visual data because of error:")
-                    printlog(str(e))
+                
                 ###
                 # write func info to csv file
                 ###
@@ -429,7 +424,7 @@ def copy_bruker_data(source, destination, folder_type, printlog, fly_dirs_dict=N
                 target_path = pathlib.Path(destination, target_name)
             # Special copy for photodiode since it goes in visual folder
             # To be tested once I have such data!!
-            elif ".csv" in source_path.name:
+            elif ".csv" in source_path.name and "VoltageRecording" in source_path.name:
                 # Create folder 'visual'
                 target_name = "photodiode.csv"
                 visual_folder_path = pathlib.Path(destination, "visual")
@@ -437,12 +432,6 @@ def copy_bruker_data(source, destination, folder_type, printlog, fly_dirs_dict=N
                 target_path = pathlib.Path(visual_folder_path, target_name)
             # Special copy for visprotocol metadata since it goes in visual folder
             # To be tested once I have such data!!
-            elif ".hdf5" in source_path.name:
-                # Create folder 'visual'
-                target_name = "stimulus.hdf5"
-                visual_folder_path = pathlib.Path(destination, "visual")
-                visual_folder_path.mkdir(exist_ok=True)
-                target_path = pathlib.Path(visual_folder_path, target_name)
             # Rename to recording_metadata.xml if appropriate
             elif ".xml" in source_path.name and "Voltage" not in source_path.name:
                 target_name = "recording_metadata.xml"
@@ -455,6 +444,9 @@ def copy_bruker_data(source, destination, folder_type, printlog, fly_dirs_dict=N
 
             elif ".xml" in source_path.name and "VoltageOutput" in source_path.name:
                 target_path = pathlib.Path(destination, "voltage_output.xml")
+
+            elif ".xml" in source_path.name and "VoltageRecording" in source_path.name:
+                target_path = pathlib.Path(destination, "voltage_recording.xml")
 
             if target_path is not None:
                 # Actually copy the file
@@ -474,6 +466,8 @@ def copy_file_func(source, target, printlog):
 
 
 def copy_visual(destination_region, printlog):
+    # copying visual data currently in copy_bruker_data
+    # copy_visual not necessary!
     printlog("copy_visual NOT IMPLEMENTED YET")
     """width = 120
     printlog(F"Copying visual stimulus data{'':.^{width - 28}}")
