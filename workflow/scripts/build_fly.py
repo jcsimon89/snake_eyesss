@@ -427,7 +427,7 @@ def copy_bruker_data(source, destination, folder_type, printlog, fly_dirs_dict=N
                 # Create folder 'visual' if it doesn't exist
                 visual_folder_path = pathlib.Path(destination, "visual")
                 visual_folder_path.mkdir(exist_ok=True)
-                target_path = pathlib.Path(visual_folder_path, "photodiode.csv")
+                target_path = pathlib.Path(visual_folder_path, "voltage_recording.csv")
 
             # Rename to recording_metadata.xml if appropriate
             elif ".xml" in source_path.name and "Voltage" not in source_path.name:
