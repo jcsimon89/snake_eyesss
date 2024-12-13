@@ -422,16 +422,13 @@ def copy_bruker_data(source, destination, folder_type, printlog, fly_dirs_dict=N
                 if ".nii" not in target_name:
                     target_name += "nii"  # Data I got from Yandan had double .nii!
                 target_path = pathlib.Path(destination, target_name)
-            # Special copy for photodiode since it goes in visual folder
-            # To be tested once I have such data!!
+
             elif ".csv" in source_path.name and "VoltageRecording" in source_path.name:
-                # Create folder 'visual'
-                target_name = "photodiode.csv"
+                # Create folder 'visual' if it doesn't exist
                 visual_folder_path = pathlib.Path(destination, "visual")
                 visual_folder_path.mkdir(exist_ok=True)
-                target_path = pathlib.Path(visual_folder_path, target_name)
-            # Special copy for visprotocol metadata since it goes in visual folder
-            # To be tested once I have such data!!
+                target_path = pathlib.Path(visual_folder_path, "photodiode.csv")
+
             # Rename to recording_metadata.xml if appropriate
             elif ".xml" in source_path.name and "Voltage" not in source_path.name:
                 target_name = "recording_metadata.xml"
@@ -443,10 +440,15 @@ def copy_bruker_data(source, destination, folder_type, printlog, fly_dirs_dict=N
                 continue
 
             elif ".xml" in source_path.name and "VoltageOutput" in source_path.name:
-                target_path = pathlib.Path(destination, "voltage_output.xml")
+                visual_folder_path = pathlib.Path(destination, "visual")
+                visual_folder_path.mkdir(exist_ok=True)
+                target_path = pathlib.Path(visual_folder_path, "voltage_output.xml")
+
 
             elif ".xml" in source_path.name and "VoltageRecording" in source_path.name:
-                target_path = pathlib.Path(destination, "voltage_recording.xml")
+                visual_folder_path = pathlib.Path(destination, "visual")
+                visual_folder_path.mkdir(exist_ok=True)
+                target_path = pathlib.Path(visual_folder_path, "voltage_recording.xml")
 
             if target_path is not None:
                 # Actually copy the file
