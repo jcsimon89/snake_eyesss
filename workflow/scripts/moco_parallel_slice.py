@@ -410,9 +410,9 @@ def combine_temp_files(moving_path,
         stitched_functional_one = np.zeros((brain_shape[0],brain_shape[1],
                                        brain_shape[2], brain_shape[3]),
                                       dtype=np.float32)
-        index_tracker = 0
         nslices = brain_shape[2]
         for slice in range(nslices):
+            index_tracker = 0
             for current_file in natsort.natsorted(temp_save_path.iterdir()):
                     if '.npy' in current_file.name and functional_path_one.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
                         index = moco_utils.index_from_filename(current_file)
@@ -442,10 +442,10 @@ def combine_temp_files(moving_path,
                                            brain_shape[2], brain_shape[3]),
                                           dtype=np.float32)
             # Collect data for second functional channel
-            index_tracker = 0
             printlog('Start combining ' + functional_channel_output_paths[1].name)
             nslices = brain_shape[2]
             for slice in range(nslices):
+                index_tracker = 0
                 for current_file in natsort.natsorted(temp_save_path.iterdir()):
                     if '.npy' in current_file.name and functional_path_two.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
                         index = moco_utils.index_from_filename(current_file)
