@@ -580,24 +580,6 @@ rule bleaching_qc_rule_struct:
 
 rule make_mean_brain_rule_func:
     """
-    Here it should be possible to parallelize quite easily as each input file creates
-    one output file!
-
-    input would be something like
-    paths_to_use = ['../fly_004/func0/imaging/functional_channel_1', '../fly_004/func1/imaging/functional_channel_2']
-
-    rule all would request the 'mean' brain of each of those
-    expand("{imaging_path}_mean.nii", imaging_path=paths_to_use)
-
-    rule make_mean_brain_rule:
-        input: "{imaging_path}.nii"
-        output: "{imaging_path}_mean.nii"
-        run: function(imaging_path)
-
-    which will do:
-        brain = read(input)
-        mean_brain = mean(brain)
-        save.mean_brain(output)
     """
     threads: snake_utils.threads_per_memory_less
     resources:
