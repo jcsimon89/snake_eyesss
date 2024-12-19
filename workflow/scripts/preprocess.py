@@ -5,7 +5,7 @@ import time
 import traceback
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-
+plt.use("agg")
 mpl.use("agg")  # Agg, is a non-interactive backend that can only write to files.
 # Without this I had the following error: Starting a Matplotlib GUI outside of the main thread will likely fail.
 import nibabel as nib
@@ -76,6 +76,7 @@ def make_mean_brain(fly_directory,
     logfile = utils.create_logfile(fly_directory, function_name=rule_name)
     printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
     #utils.print_function_start(logfile, rule_name)
+
 
     #####
     # CONVERT PATHS TO PATHLIB.PATH OBJECTS
