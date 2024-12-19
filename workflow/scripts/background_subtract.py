@@ -3,6 +3,8 @@ import glob
 import numpy as np
 import nibabel as nib
 from skimage import io
+import matplotlib as mpl
+mpl.use("agg")
 import matplotlib.pyplot as plt
 from scipy import signal
 import argparse
