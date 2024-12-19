@@ -337,10 +337,10 @@ def combine_temp_files(moving_path,
     transform_matrix = np.zeros((nslices,brain_shape[3],6))
     # Loop through all files. Because it's sorted we don't have to worry about
     # the index!
-    index_tracker = 0
     printlog('Start combining ' + moving_output_path.name)
     
     for slice in range(nslices):
+        index_tracker = 0
         for current_file in natsort.natsorted(temp_save_path.iterdir()):
             # Check if moving_path.name, for example channel_1.nii is in filename
             if '.npy' in current_file.name and moving_path.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
