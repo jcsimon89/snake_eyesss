@@ -5,6 +5,8 @@ import nibabel as nib
 from skimage import io
 import matplotlib as mpl
 mpl.use("agg")
+from matplotlib import pyplot as plt
+plt.switch_backend("agg")
 from scipy import signal
 import argparse
 import sys
@@ -54,10 +56,10 @@ def BgRemover3D(args, half_wid=20):
     test = test.flatten(order='F') 
     test = (test-test.mean())/test.std()
     f, Pxx_den = signal.periodogram(test, fs)
-    mpl.pyplot.semilogy(f, Pxx_den)
-    mpl.pyplot.ylim([1e-7, 1000])
-    mpl.pyplot.savefig(os.path.join(dir, file_head +'_before_removal.png'))
-    mpl.pyplot.close()
+    plt.semilogy(f, Pxx_den)
+    plt.ylim([1e-7, 1000])
+    plt.savefig(os.path.join(dir, file_head +'_before_removal.png'))
+    plt.close()
 
     ### draw bg
     wid = 2*half_wid
