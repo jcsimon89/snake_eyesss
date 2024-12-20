@@ -1,11 +1,10 @@
 import h5py
 import numpy as np
 import matplotlib as mpl
-
-mpl.use("agg")  # Agg, is a non-interactive backend that can only write to files.
+print('initial backend for moco_utils is: ' + repr(mpl.get_backend()))
+mpl.use("agg")
+print('set backend for moco_utils to: ' + repr(mpl.get_backend()))  # Agg, is a non-interactive backend that can only write to files.
 # Without this I had the following error: Starting a Matplotlib GUI outside of the main thread will likely fail.
-from matplotlib import pyplot as plt
-plt.switch_backend('agg')
 import pathlib
 import time
 import nibabel as nib
@@ -92,7 +91,7 @@ def save_moco_figure(transform_matrix, parent_path, moco_dir, printlog):
             # Save figure of motion over time
             # save_file = os.path.join(moco_dir, 'motion_correction.png')
             save_file = pathlib.Path(moco_dir, "motion_correction.png")
-            fig = plt.figure(figsize=(10, 10))
+            fig = mpl.pyplot.figure(figsize=(10, 10))
             ax = fig.add_subplot(111)
             ax.plot(
                 transform_matrix[:, 9] * x_res, label="y"
@@ -102,7 +101,7 @@ def save_moco_figure(transform_matrix, parent_path, moco_dir, printlog):
             ax.set_ylabel("Motion Correction, um")
             ax.set_xlabel("Time")
             ax.set_title(moco_dir)
-            plt.legend()
+            mpl.pyplot.legend()
             fig.savefig(save_file, bbox_inches="tight", dpi=300)
 
             return
