@@ -208,12 +208,13 @@ def find_missing_temp_files(fixed_path,
     brain_shape = moving_proxy.header.get_data_shape()
     nslices = brain_shape[2] #assumes data is x,y,z,t
 
-    index_tracker = 0
     for slice in range(nslices):
+        index_tracker = 0
         for current_file in natsort.natsorted(temp_save_path.iterdir()):
             #print('Finding missing files: current_file ' + current_file.name)
             # Check if moving_path.name, for example channel_1.nii is in filename
-            if '.npy' in current_file.name and moving_path.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
+            # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
+            if '.npy' in current_file.name and moving_path.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
                 # Extract index number and slice number
                 index = moco_utils.index_from_filename(current_file)
                 if index == index_tracker:
@@ -343,7 +344,8 @@ def combine_temp_files(moving_path,
         index_tracker = 0
         for current_file in natsort.natsorted(temp_save_path.iterdir()):
             # Check if moving_path.name, for example channel_1.nii is in filename
-            if '.npy' in current_file.name and moving_path.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
+            # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
+            if '.npy' in current_file.name and moving_path.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
                 # Extract index number
                 index = moco_utils.index_from_filename(current_file)
                 stitched_anatomy_brain[:,:,slice,index] = np.load(current_file)
@@ -357,7 +359,8 @@ def combine_temp_files(moving_path,
                 index_tracker += 1
 
             # and collect motcorr_params, this is tiny so no worries about space here
-            elif 'motcorr_params' in current_file.name and 'slice{}'.format(slice) in current_file.name:
+            # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
+            elif 'motcorr_params' in current_file.name and '_slice{}_'.format(slice) in current_file.name:
                 index = moco_utils.index_from_filename(current_file)
                 transform_matrix[slice,index,:] = np.load(current_file)
     # SAVE
@@ -414,7 +417,8 @@ def combine_temp_files(moving_path,
         for slice in range(nslices):
             index_tracker = 0
             for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                    if '.npy' in current_file.name and functional_path_one.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
+                    # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
+                    if '.npy' in current_file.name and functional_path_one.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
                         index = moco_utils.index_from_filename(current_file)
                         stitched_functional_one[:,:,slice,index] = np.load(current_file)
                         # Just a sanity check! E.g. for first image we expect '0'
@@ -447,7 +451,8 @@ def combine_temp_files(moving_path,
             for slice in range(nslices):
                 index_tracker = 0
                 for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                    if '.npy' in current_file.name and functional_path_two.name in current_file.name and 'slice{}'.format(slice) in current_file.name:
+                    # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
+                    if '.npy' in current_file.name and functional_path_two.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
                         index = moco_utils.index_from_filename(current_file)
                         stitched_functional_two[:, :, slice, index] = np.load(current_file)
                         # Just a sanity check! E.g. for first image we expect '0'
