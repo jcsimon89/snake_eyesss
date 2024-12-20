@@ -5,6 +5,7 @@ import matplotlib as mpl
 mpl.use("agg")  # Agg, is a non-interactive backend that can only write to files.
 # Without this I had the following error: Starting a Matplotlib GUI outside of the main thread will likely fail.
 from matplotlib import pyplot as plt
+plt.switch_backend('agg')
 import pathlib
 import time
 import nibabel as nib

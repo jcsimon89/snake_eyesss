@@ -6,6 +6,7 @@ from skimage import io
 import matplotlib as mpl
 mpl.use("agg")
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 from scipy import signal
 import argparse
 import sys
