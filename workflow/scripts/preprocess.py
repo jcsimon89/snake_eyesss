@@ -188,6 +188,7 @@ def bleaching_qc(
     ##############################
     # plotting params
     plt.rcParams.update({"font.size": 24})
+    plt.switch_backend('agg')
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
     signal_loss = {}
