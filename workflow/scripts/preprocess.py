@@ -188,7 +188,7 @@ def bleaching_qc(
     ### OUTPUT BLEACHING CURVE ###
     ##############################
     # plotting params
-    mpl.pyplot.rcParams.update({"font.size": 24})
+    #mpl.pyplot.rcParams.update({"font.size": 24})
     print('reseting backend for bleaching qc, current backend is: ' + repr(mpl.get_backend()))
     mpl.pyplot.switch_backend('agg')
     print('backend for bleaching qc set to: ' + repr(mpl.get_backend()))
