@@ -157,10 +157,11 @@ def bleaching_qc(
     ####
     # LOGGING
     ####
+    print('test printing before log definition')
     logfile = utils.create_logfile(fly_directory, function_name="bleaching_qc")
     printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
     #utils.print_function_start(logfile, "bleaching_qc")
-
+    print('test printing after log definition')
     #####
     # CONVERT PATHS TO PATHLIB.PATH OBJECTS
     #####
