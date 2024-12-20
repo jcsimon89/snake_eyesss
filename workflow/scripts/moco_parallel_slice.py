@@ -662,7 +662,7 @@ if __name__ == '__main__':
     # Hence, I fixed the core count at 8.
     cores = 8
     if TESTING:
-        cores = 4
+        cores = 22
 
     # create an index going from [0,1,...,n]
     time_index = moco_utils.prepare_time_index(moving_path)
