@@ -1,9 +1,8 @@
 import h5py
 import numpy as np
 import matplotlib as mpl
-print('initial backend for moco_utils is: ' + repr(mpl.get_backend()))
 mpl.use("agg")
-print('set backend for moco_utils to: ' + repr(mpl.get_backend()))  # Agg, is a non-interactive backend that can only write to files.
+# Agg, is a non-interactive backend that can only write to files.
 # Without this I had the following error: Starting a Matplotlib GUI outside of the main thread will likely fail.
 import pathlib
 import time

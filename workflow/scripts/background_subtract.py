@@ -4,9 +4,7 @@ import numpy as np
 import nibabel as nib
 from skimage import io
 import matplotlib as mpl
-print('initial backend for background subtractions is: ' + repr(mpl.get_backend()))
 mpl.use("agg")
-print('setting backend for background subtractions to: ' + repr(mpl.get_backend()))
 from scipy import signal
 import argparse
 import sys

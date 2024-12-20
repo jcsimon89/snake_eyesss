@@ -4,9 +4,7 @@ import sys
 import time
 import traceback
 import matplotlib as mpl
-print('initial backend for preprocessing is: ' + repr(mpl.get_backend()))
 mpl.use("agg")
-print('setting backend for preprocessing to: ' + repr(mpl.get_backend()))
  # Agg, is a non-interactive backend that can only write to files.
 # Without this I had the following error: Starting a Matplotlib GUI outside of the main thread will likely fail.
 import nibabel as nib
@@ -189,10 +187,7 @@ def bleaching_qc(
     ### OUTPUT BLEACHING CURVE ###
     ##############################
     # plotting params
-    #mpl.pyplot.rcParams.update({"font.size": 24})
-    print('reseting backend for bleaching qc, current backend is: ' + repr(mpl.get_backend()))
-    mpl.pyplot.switch_backend('agg')
-    print('backend for bleaching qc set to: ' + repr(mpl.get_backend()))
+    mpl.pyplot.rcParams.update({"font.size": 24})
     fig = mpl.pyplot.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
     signal_loss = {}
