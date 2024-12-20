@@ -40,7 +40,7 @@ def convert_list_of_string_to_posix_path(list_of_strings):
     """
     list_with_posix_paths = []
     for current_path in list_of_strings:
-        print(current_path)
+        #print(current_path)
         try:
             list_with_posix_paths.append(pathlib.Path(current_path))
         except TypeError:
