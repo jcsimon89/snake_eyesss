@@ -660,7 +660,7 @@ if __name__ == '__main__':
     # There seems to be some multiprocessing going on in ants.registration which might explain
     # why we don't see improved times during benchmarking.
     # Hence, I fixed the core count at 8.
-    cores = 22
+    cores = 44
     if TESTING:
         cores = 4
 
