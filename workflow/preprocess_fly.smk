@@ -627,7 +627,7 @@ rule make_mean_brain_rule_struct:
 rule motion_correction_parallel_slice_func:
     # separate slices, 2d moco, restitch
     threads:
-        32
+        40
     resources:
         mem_mb=snake_utils.mb_for_moco_input, #.mem_mb_much_more_times_input,
         runtime=snake_utils.time_for_moco_input # runtime takes input as seconds!
@@ -667,7 +667,7 @@ rule motion_correction_parallel_slice_func:
 rule motion_correction_parallel_slice_struct:
     # separate slices, 2d moco, restitch
     threads:
-        32
+        40
     resources:
         mem_mb=snake_utils.mb_for_moco_input, #.mem_mb_much_more_times_input,
         runtime=snake_utils.time_for_moco_input # runtime takes input as seconds!
