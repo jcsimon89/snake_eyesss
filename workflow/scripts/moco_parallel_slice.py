@@ -224,7 +224,7 @@ def find_missing_temp_files(fixed_path,
                     # in case more than one file (e.g. 1 & 2) are missing!
                     while index > index_tracker:
                         print('Missing files: ' + repr(index_tracker))
-                        slice_and_index_of_missing_files.append(tuple(slice,index_tracker))
+                        slice_and_index_of_missing_files.append(tuple([slice,index_tracker]))
                         index_tracker+=1 #
                 # Once index == index_tracker, add 1 to be prepared for the next loop!
                 index_tracker+=1
@@ -254,7 +254,7 @@ def find_missing_temp_files(fixed_path,
                     else:
                         # in case more than one file (e.g. 1 & 2) are missing!
                         while index > index_tracker:
-                            slice_and_index_of_missing_files.append(tuple(slice,index_tracker))
+                            slice_and_index_of_missing_files.append(tuple([slice,index_tracker]))
                             index_tracker += 1  #
                     # Once index == index_tracker, add 1 to be prepared for the next loop!
                     index_tracker += 1
@@ -270,7 +270,7 @@ def find_missing_temp_files(fixed_path,
                     else:
                         # in case more than one file (e.g. 1 & 2) are missing!
                         while index > index_tracker:
-                            slice_and_index_of_missing_files.append(tuple(slice,index_tracker))
+                            slice_and_index_of_missing_files.append(tuple([slice,index_tracker]))
                             index_tracker += 1  #
                     # Once index == index_tracker, add 1 to be prepared for the next loop!
                     index_tracker += 1
