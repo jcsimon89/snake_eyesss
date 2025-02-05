@@ -275,7 +275,7 @@ def find_missing_temp_files(fixed_path,
                     # Once index == index_tracker, add 1 to be prepared for the next loop!
                     index_tracker += 1
                     # remove duplicate entries
-        slice_and_index_of_missing_files = np.unique(np.asarray(slice_and_index_of_missing_files))
+    slice_and_index_of_missing_files = np.unique(np.asarray(slice_and_index_of_missing_files))
 
     # loop through index_of_missing_files. If it's an empty list, don't loop and skip
     if len(slice_and_index_of_missing_files) > 0:
