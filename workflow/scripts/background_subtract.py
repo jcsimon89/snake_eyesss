@@ -117,7 +117,7 @@ def BgRemover3D(args, half_wid=20):
                 printlog(str(e))
                 printlog(traceback.format_exc())
     
-    save_name = args.moco_path_ch2
+    save_name = args.bg_path_ch2
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
 
 if __name__ == '__main__':
@@ -127,7 +127,7 @@ if __name__ == '__main__':
     parser.add_argument("--dataset_path", nargs="?", help="Folder pointing 'preprocessed'")
     parser.add_argument("--brain_paths_ch2", nargs="?", help="Path to ch2 file, if it exists")
     parser.add_argument("--FUNCTIONAL_CHANNELS", nargs="?", help="list with strings containing the functional channel")
-    parser.add_argument("--moco_path_ch2", nargs="?", help="Path to ch2 moco corrected file, if Ch2 exists")
+    parser.add_argument("--bg_path_ch2", nargs="?", help="Path to ch2 moco corrected file, if Ch2 exists")
     args = parser.parse_args()
 
     BgRemover3D(args, half_wid=20) #original setting: 20

@@ -601,6 +601,29 @@ rule make_mean_brain_rule_func:
             utils.write_error(logfile=logfile,
                 error_stack=error_stack)
 
+rule make_mean_brain_rule_bg_func:
+    """
+    """
+    threads: snake_utils.threads_per_memory_less
+    resources:
+        mem_mb=snake_utils.mem_mb_less_times_input,  #snake_utils.mem_mb_times_input #mem_mb=snake_utils.mem_mb_more_times_input
+        runtime='10m' # should be enough
+    input:
+            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii"
+    output:
+            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_func}/imaging/bg/channel_2_bg_mean_func.nii"
+    run:
+        try:
+            preprocess.make_mean_brain(fly_directory=fly_folder_to_process_oak,
+                meanbrain_n_frames=meanbrain_n_frames,
+                path_to_read=input,
+                path_to_save=output,
+                rule_name='make_mean_brain_rule_bg')
+        except Exception as error_stack:
+            logfile = utils.create_logfile(fly_folder_to_process_oak,function_name='ERROR_make_mean_brain_bg')
+            utils.write_error(logfile=logfile,
+                error_stack=error_stack)
+
 rule make_mean_brain_rule_struct:
     """
     """
@@ -635,15 +658,15 @@ rule motion_correction_parallel_slice_func:
         # Only use the Channels that exists - this organizes the anatomy and functional paths inside the motion correction
         # module.
         brain_paths_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_1.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_2.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
         brain_paths_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_3.nii" if CH3_EXISTS_FUNC_MOCO else [],
 
         mean_brain_paths_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_1_mean_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        mean_brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_2_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        mean_brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
         mean_brain_paths_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_3_mean_func.nii" if CH3_EXISTS_FUNC_MOCO else []
     output:
         moco_path_ch1 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
-        moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
         moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
         par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/motcorr_params_func.npy"
 
@@ -756,21 +779,17 @@ rule background_subtract_func:
     resources: mem_mb=snake_utils.mem_mb_times_input
     input:
         # jcs run background_subtract on ch2 only?
-        #brain_paths_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_1.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        #brain_paths_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_3.nii" if CH3_EXISTS_FUNC_MOCO else [],
+        brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_2.nii" if CH2_EXISTS_FUNC_MOCO else [],
     output:
-        #moco_path_ch1 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
-        moco_path_ch2 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        #moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
-        bg_img_before = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func_before_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_after = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func_after_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_selection = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_func_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_path_ch2 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_img_before = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_func_before_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_img_after = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_func_after_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_img_selection = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_func_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
     shell: shell_python_command + " " + scripts_path + "/scripts/background_subtract.py "
         "--fly_directory {fly_folder_to_process_oak} "
         "--dataset_path {dataset_path} "
         "--brain_paths_ch2 {input.brain_paths_ch2} "
         "--FUNCTIONAL_CHANNELS {FUNCTIONAL_CHANNELS} "
-        "--moco_path_ch2 {output.moco_path_ch2} "
+        "--bg_path_ch2 {output.bg_path_ch2} "
 
 
