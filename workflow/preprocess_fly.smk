@@ -492,13 +492,13 @@ rule all:
         # Background Subtraction (line by line)
         ###
         # jcs run background_subtract on ch2 only?
-        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
                 moco_imaging_paths_func=list_of_paths_func),
-        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_moco_func_before_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func_before_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
                 moco_imaging_paths_func=list_of_paths_func),
-        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_moco_func_after_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func_after_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
                 moco_imaging_paths_func=list_of_paths_func),
-        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_moco_func_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
                 moco_imaging_paths_func=list_of_paths_func),
     
 rule fly_builder_rule:
@@ -754,9 +754,9 @@ rule moco_mean_brain_rule_func:
         str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
         str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
     output:
-        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_1_moco_mean_func.nii" if CH1_EXISTS_FUNC_MOCO else []
-        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_2_moco_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else []
-        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_3_moco_mean_func.nii" if CH3_EXISTS_FUNC_MOCO else []
+        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_1_moco_mean_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
+        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_2_moco_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_3_moco_mean_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
     run:
         try:
             preprocess.make_mean_brain(fly_directory=fly_folder_to_process_oak,
@@ -801,9 +801,9 @@ rule background_subtract_func:
         brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_2.nii" if CH2_EXISTS_FUNC_MOCO else [],
     output:
         bg_path_ch2 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_before = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_func_before_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_after = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_func_after_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_selection = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_func_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_img_before = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func_before_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_img_after = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func_after_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_img_selection = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
     shell: shell_python_command + " " + scripts_path + "/scripts/background_subtract.py "
         "--fly_directory {fly_folder_to_process_oak} "
         "--dataset_path {dataset_path} "

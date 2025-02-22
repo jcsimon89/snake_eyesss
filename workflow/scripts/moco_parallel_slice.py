@@ -663,7 +663,7 @@ if __name__ == '__main__':
     # Hence, I fixed the core count at 8.
     cores = 40
     if TESTING:
-        cores = 4
+        cores = 40
 
     # create an index going from [0,1,...,n]
     time_index = moco_utils.prepare_time_index(moving_path) #TODO: change for multiple time indices
@@ -675,7 +675,7 @@ if __name__ == '__main__':
 
     print('Will perform motion correction on a total of ' + repr(len(time_index)) + ' volumes.')
     if TESTING:
-        time_index = [0,1,2,3,4,5,6,7]
+        time_index = list(range(0,10,1))#[0,1,2,3,4,5,6,7]
 
     # Manual multiprocessing, essentially copy-paste from answer here:
     # https://stackoverflow.com/questions/23119382/how-can-i-multithread-a-function-that-reads-a-list-of-objects-in-python-astroph/23436094#23436094
