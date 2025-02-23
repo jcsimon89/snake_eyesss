@@ -50,8 +50,8 @@ def prepare_time_index_chunks(moving_path,chunk=100):
     moving_proxy = nib.load(moving_path)
     # Read the header to get dimensions
     brain_shape = moving_proxy.header.get_data_shape()
-    # last dimension is time, indicating the amount of volumes in the dataset
-    experiment_total_frames = brain_shape[-1]
+    # get total number of frames
+    experiment_total_frames = brain_shape[3] #assumes data is x,y,z,t
     # make a list that represents the index of the total_frames
     n_chunks = math.ceil(experiment_total_frames/chunk)
     start_ind = list(range(0,experiment_total_frames-1,chunk))
@@ -85,8 +85,8 @@ def index_range_from_filename(filename):
     :param filename:
     :return: index range for file as tuple (start_index,end_index)
     """
-    start_index = int(filename.name.split('index')[-1].split('.npy')[0].split['-'][0])
-    end_index = int(filename.name.split('index')[-1].split('.npy')[0].split['-'][1])
+    start_index = int(filename.name.split('index')[-1].split('.npy')[0].split('-')[0])
+    end_index = int(filename.name.split('index')[-1].split('.npy')[0].split('-')[1])
     index_range = (start_index,end_index)
 
     return(index_range)
