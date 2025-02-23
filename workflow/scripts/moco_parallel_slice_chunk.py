@@ -710,8 +710,8 @@ if __name__ == '__main__':
     for current_slice in range(nslices):
     # Loop through index, yield 0, 1 etc.
         for current_index_range in time_index:
-            start_ind = current_index_range[0][0]
-            end_ind = current_index_range[0][1]
+            start_ind = current_index_range[0]
+            end_ind = current_index_range[1]
             current_time_chunk = list(range(start_ind,end_ind+1,1))
             # Run until break
             while True:
