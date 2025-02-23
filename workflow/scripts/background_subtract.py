@@ -38,8 +38,10 @@ def BgRemover3D(args, half_wid=20):
     img_proxy = nib.load(path)
     # Load data, it's float32 at this point
     img = np.asarray(img_proxy.dataobj, dtype='float32')
-    dir = os.path.dirname(path)
+    dir = os.path.join(os.path.dirname(path),'bg')
     file_head = path.split('.')[0].split('/')[-1]
+    print('dir: ' + str(dir))
+    print('file_head: ' + str(file_head))
     
     # save before fig
     half_wid = 5
@@ -58,7 +60,7 @@ def BgRemover3D(args, half_wid=20):
     f, Pxx_den = signal.periodogram(test, fs)
     plt.semilogy(f, Pxx_den)
     plt.ylim([1e-7, 1000])
-    plt.savefig(os.path.join(dir, file_head +'_before_removal.png'))
+    plt.savefig(os.path.join(dir, file_head +'_before_bg_removal.png'))
     plt.close()
 
     ### draw bg
@@ -106,7 +108,7 @@ def BgRemover3D(args, half_wid=20):
     f, Pxx_den = signal.periodogram(test, fs)
     mpl.pyplot.semilogy(f, Pxx_den)
     mpl.pyplot.ylim([1e-7, 1000])
-    mpl.pyplot.savefig(os.path.join(dir, file_head +'_after_removal.png'))
+    mpl.pyplot.savefig(os.path.join(dir, file_head +'_after_bg_removal.png'))
     mpl.pyplot.close()
 
     ### save out
