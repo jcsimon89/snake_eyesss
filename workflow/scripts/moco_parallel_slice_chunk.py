@@ -568,7 +568,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # hard coded moco time chunk size
-    chunk = 100
+    chunk = 5
 
     #####################
     ### SETUP LOGGING ###
@@ -710,7 +710,7 @@ if __name__ == '__main__':
     # Hence, I fixed the core count at 8.
     cores = 40
     # create list of index tuples for each chunk (start_ind, end_ind)
-    time_index = moco_utils.prepare_time_index_chunks(moving_path)
+    time_index = moco_utils.prepare_time_index_chunks(moving_path,chunk)
     if TESTING:
         cores = 40
         chunk = 10
