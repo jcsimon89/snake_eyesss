@@ -685,7 +685,7 @@ rule motion_correction_parallel_slice_func:
         moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
         par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/motcorr_params_func.npy"
 
-    shell: shell_python_command + " " + scripts_path + "/scripts/moco_parallel_slice.py "
+    shell: shell_python_command + " " + scripts_path + "/scripts/moco_parallel_slice_chunk.py "
         "--fly_directory {fly_folder_to_process_oak} "
         "--dataset_path {dataset_path} "
         "--brain_paths_ch1 {input.brain_paths_ch1} "
@@ -725,7 +725,7 @@ rule motion_correction_parallel_slice_struct:
         moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/channel_3_moco_struct.nii" if CH3_EXISTS_STRUCT else [],
         par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/motcorr_params_struct.npy"
 
-    shell: shell_python_command + " " + scripts_path + "/scripts/moco_parallel_slice.py "
+    shell: shell_python_command + " " + scripts_path + "/scripts/moco_parallel_slice_chunk.py "
                                        "--fly_directory {fly_folder_to_process_oak} "
                                        "--dataset_path {dataset_path} "
                                        "--brain_paths_ch1 {input.brain_paths_ch1} "

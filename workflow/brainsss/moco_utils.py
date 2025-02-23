@@ -77,6 +77,20 @@ def index_from_filename(filename):
 
     return(index)
 
+def index_range_from_filename(filename):
+    """
+    Temporary files are saved with a characteristic file name indicating their index
+    in the original array such as: '...index0-99.npy'
+    This function just extracts the index range (in this case (0,99)) from the filename.
+    :param filename:
+    :return: index range for file as tuple (start_index,end_index)
+    """
+    start_index = int(filename.name.split('index')[-1].split('.npy')[0].split['-'][0])
+    end_index = int(filename.name.split('index')[-1].split('.npy')[0].split['-'][1])
+    index_range = (start_index,end_index)
+
+    return(index_range)
+
 
 '''
 def make_empty_h5(directory, file, brain_dims): 
