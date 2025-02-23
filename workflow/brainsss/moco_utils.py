@@ -37,7 +37,7 @@ def prepare_time_index(moving_path):
 
     return(time_index)
 
-def prepare_time_index_chunks(moving_path,chunk=100):
+def prepare_time_index_chunks(moving_path,chunk):
     """
     Returns a list with length (time dimension) of dataset. List starts at 0 and
     goes to data.shape[-1] like this: [0,chunk-1,2*chunk-1,...n].
