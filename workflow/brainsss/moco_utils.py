@@ -7,6 +7,7 @@ mpl.use("agg")
 import pathlib
 import time
 import nibabel as nib
+import math
 
 # To import brainsss, define path to scripts!
 import sys
@@ -33,6 +34,34 @@ def prepare_time_index(moving_path):
     experiment_total_frames = brain_shape[-1]
     # make a list that represents the index of the total_frames
     time_index = list(np.arange(experiment_total_frames))
+
+    return(time_index)
+
+def prepare_time_index_chunks(moving_path,chunk=100):
+    """
+    Returns a list with length (time dimension) of dataset. List starts at 0 and
+    goes to data.shape[-1] like this: [0,chunk-1,2*chunk-1,...n].
+    It includes the last element even if the chunk size changes (if total frames
+    divided by chunk size is not an integer)
+    :param moving_path: path to data used to extract time
+    :return: time_index (list of tuples of length eperiment_total_frames, where each tuple is pair of start and end inds for that chunk)
+    """
+    # Put moving anatomy image into a proxy for nibabel
+    moving_proxy = nib.load(moving_path)
+    # Read the header to get dimensions
+    brain_shape = moving_proxy.header.get_data_shape()
+    # last dimension is time, indicating the amount of volumes in the dataset
+    experiment_total_frames = brain_shape[-1]
+    # make a list that represents the index of the total_frames
+    n_chunks = math.ceil(experiment_total_frames/chunk)
+    start_ind = list(range(0,experiment_total_frames-1,chunk))
+    end_ind = list(range(0+chunk-1,experiment_total_frames,chunk))
+    if len(start_ind)!=len(end_ind): #experiment_total_frames is not a multiple of chunk (missing last end_ind)
+        end_ind.append(experiment_total_frames-1)
+    time_index = []
+    for i in range(0,n_chunks):
+        current_ind_pair = (start_ind[i],end_ind[i])
+        time_index.append(current_ind_pair)
 
     return(time_index)
 
