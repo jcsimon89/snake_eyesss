@@ -673,9 +673,9 @@ if __name__ == '__main__':
     brain_shape = moving_proxy.header.get_data_shape()
     nslices = brain_shape[2] #assumes data is x,y,z,t
 
-    print('Will perform motion correction on a total of ' + repr(len(time_index)) + ' volumes.')
+    print('Will perform motion correction on a total of ' + repr(len(time_index)) + ' timepoints and ' + repr(nslices) + ' slices.')
     if TESTING:
-        time_index = list(range(0,10,1))#[0,1,2,3,4,5,6,7]
+        time_index = list(range(0,100,1))#[0,1,2,3,4,5,6,7]
 
     # Manual multiprocessing, essentially copy-paste from answer here:
     # https://stackoverflow.com/questions/23119382/how-can-i-multithread-a-function-that-reads-a-list-of-objects-in-python-astroph/23436094#23436094
@@ -688,6 +688,7 @@ if __name__ == '__main__':
     # Define what the max number of processes is
     max_processes = cores
 
+    time_start = time.time()
     # Loop thorugh slices
     for current_slice in range(nslices):
     # Loop through index, yield 0, 1 etc.
@@ -754,6 +755,7 @@ if __name__ == '__main__':
                 break  # need to break out of the for-loop,
                 # because the child_list index is changed by pop
 
+    print('Took: ' + repr(time.time() - time_start) + 's to motion correct files')
     print('Motion correction done. Checking for missing files now')
 
     find_missing_temp_files(fixed_path,
