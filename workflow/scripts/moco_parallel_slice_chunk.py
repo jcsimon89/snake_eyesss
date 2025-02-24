@@ -98,10 +98,6 @@ def moco_slice(
     # Load moving proxy in this process
     moving_proxy = nib.load(moving_path)
 
-    #initialize numpy array with the same shape as the fixed image (x,y), then add t dimension to append over
-    moco = np.empty(fixed_data.shape[0:1], dtype='float32')
-    moco = np.expand_dims(moco, axis=2)
-    print('shape of moco after initialization: ' + str(moco.shape))
 
     # Unpack functional paths and initialize data structures
     if functional_channel_paths is None:
@@ -109,13 +105,10 @@ def moco_slice(
         functional_path_two = None
     elif len(functional_channel_paths) == 1:
         functional_path_one = functional_channel_paths[0]
-        moco_functional_one = np.empty_like(moco, dtype='float32')
         functional_path_two = None
     elif len(functional_channel_paths) == 2:
         functional_path_one = functional_channel_paths[0]
-        moco_functional_one = np.empty_like(moco, dtype='float32')
         functional_path_two = functional_channel_paths[1]
-        moco_functional_two = np.empty_like(moco, dtype='float32')
     else:
         # Fix this, should be identical to if!
         functional_path_one = None
@@ -135,11 +128,9 @@ def moco_slice(
                                 total_sigma=total_sigma,
                                 aff_metric=aff_metric)
         if index == start_index:
-            moco = np.expand_dims(moco_frame["warpedmovout"].numpy(),axis=2,dtype='float32')
-            print('shape of moco after data assignment, index = ' + str(index) + ': ' + str(moco.shape))
+            moco = np.expand_dims(moco_frame["warpedmovout"].numpy(),axis=2)
         else:
-            moco = np.append(moco,np.expand_dims(moco_frame["warpedmovout"].numpy(),axis=2,dtype='float32'), axis=2, dtype='float32')
-            print('shape of moco after data assignment, index = ' + str(index) + ': ' + str(moco.shape))
+            moco = np.append(moco,np.expand_dims(moco_frame["warpedmovout"].numpy(),axis=2), axis=2)
 
         #print('Registration took ' + repr(time.time() - t0) + 's')
 
@@ -165,12 +156,9 @@ def moco_slice(
             moco_functional_one_frame = ants.apply_transforms(fixed_ants, moving_frame_one_ants, transformlist)
 
             if index == start_index:
-                moco_functional_one = np.expand_dims(moco_functional_one_frame.numpy(),axis=2,dtype='float32')
-                print('shape of moco_functional_one after data assignment, index = ' + str(index) + ': ' + str(moco_functional_one.shape))
+                moco_functional_one = np.expand_dims(moco_functional_one_frame.numpy(),axis=2)
             else:
-                moco_functional_one = np.append(moco_functional_one,np.expand_dims(moco_functional_one_frame.numpy(),axis=2,dtype='float32'), axis=2, dtype='float32')
-                print('shape of moco_functional_one after data assignment, index = ' + str(index) + ': ' + str(moco_functional_one.shape))
-
+                moco_functional_one = np.append(moco_functional_one,np.expand_dims(moco_functional_one_frame.numpy(),axis=2), axis=2)
             
             if functional_path_two is not None:
                 current_functional_two = functional_two_proxy.dataobj[:,:,slice, index]
@@ -179,12 +167,9 @@ def moco_slice(
                 moco_functional_two_frame = ants.apply_transforms(fixed_ants, moving_frame_two_ants, transformlist)
                 
                 if index == start_index:
-                    moco_functional_two = np.expand_dims(moco_functional_two_frame.numpy(),axis=2,dtype='float32')
-                    print('shape of moco_functional_two after data assignment, index = ' + str(index) + ': ' + str(moco_functional_two.shape))
+                    moco_functional_two = np.expand_dims(moco_functional_two_frame.numpy(),axis=2)
                 else:
-                    moco_functional_two = np.append(moco_functional_two,np.expand_dims(moco_functional_two_frame.numpy(),axis=2,dtype='float32'), axis=2, dtype='float32')
-                    print('shape of moco_functional_two after data assignment, index = ' + str(index) + ': ' + str(moco_functional_two.shape))
-
+                    moco_functional_two = np.append(moco_functional_two,np.expand_dims(moco_functional_two_frame.numpy(),axis=2), axis=2)
         # delete writen files:
         # Delete transform info - might be worth keeping instead of huge resulting file? TBD
             for x in transformlist:
