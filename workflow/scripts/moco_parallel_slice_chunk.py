@@ -85,23 +85,6 @@ def moco_slice(
     """
     # Keeping track of time
     t_function_start = time.time()
-    # Unpack functional paths and initialize data structures
-    if functional_channel_paths is None:
-        functional_path_one = None
-        functional_path_two = None
-    elif len(functional_channel_paths) == 1:
-        functional_path_one = functional_channel_paths[0]
-        moco_functional_one = []
-        functional_path_two = None
-    elif len(functional_channel_paths) == 2:
-        functional_path_one = functional_channel_paths[0]
-        moco_functional_one = []
-        functional_path_two = functional_channel_paths[1]
-        moco_functional_two = []
-    else:
-        # Fix this, should be identical to if!
-        functional_path_one = None
-        functional_path_two = None
     # unpack start and end indexes for saving later
     start_index = indices[0]
     end_index = indices[-1] 
@@ -118,7 +101,25 @@ def moco_slice(
     #initialize numpy array with the same shape as the fixed image (x,y), then add t dimension to append over
     moco = np.empty(fixed_data.shape[0:1], dtype='float32')
     moco = np.expand_dims(moco, axis=2)
-    print('shape of moco: ' + str(moco.shape))
+    print('shape of moco after initialization: ' + str(moco.shape))
+
+    # Unpack functional paths and initialize data structures
+    if functional_channel_paths is None:
+        functional_path_one = None
+        functional_path_two = None
+    elif len(functional_channel_paths) == 1:
+        functional_path_one = functional_channel_paths[0]
+        moco_functional_one = np.empty_like(moco, dtype='float32')
+        functional_path_two = None
+    elif len(functional_channel_paths) == 2:
+        functional_path_one = functional_channel_paths[0]
+        moco_functional_one = np.empty_like(moco, dtype='float32')
+        functional_path_two = functional_channel_paths[1]
+        moco_functional_two = np.empty_like(moco, dtype='float32')
+    else:
+        # Fix this, should be identical to if!
+        functional_path_one = None
+        functional_path_two = None
 
     for index in indices:
         # Load data in a given process
@@ -134,7 +135,8 @@ def moco_slice(
                                 total_sigma=total_sigma,
                                 aff_metric=aff_metric)
 
-        moco = np.append(moco, moco_frame["warpedmovout"].numpy(),2 )#moco.append(moco_frame["warpedmovout"].numpy())
+        moco = np.append(moco, moco_frame["warpedmovout"].numpy(),axis=2)
+        print('shape of moco after data assignment, index = ' + str(index) + ': ' + str(moco.shape))
 
         #print('Registration took ' + repr(time.time() - t0) + 's')
 
@@ -158,7 +160,7 @@ def moco_slice(
             moving_frame_one_ants = ants.from_numpy(np.asarray(current_functional_one, dtype=np.float32))
             # to motion correction for functional image
             moco_functional_one_frame = ants.apply_transforms(fixed_ants, moving_frame_one_ants, transformlist)
-            moco_functional_one.append(moco_functional_one_frame.numpy())
+            moco_functional_one = np.append(moco_functional_one,moco_functional_one_frame.numpy(),axis=2)
             # put moco functional image into preallocated array
             #moco_functional_one[:, :, :, counter] = moving_frame_one_ants.numpy()
             #print('apply transforms took ' + repr(time.time() - t0) + 's')
@@ -171,7 +173,7 @@ def moco_slice(
                 moving_frame_two_ants = ants.from_numpy(np.asarray(current_functional_two, dtype=np.float32))
                 # to motion correction for functional image
                 moco_functional_two_frame = ants.apply_transforms(fixed_ants, moving_frame_two_ants, transformlist)
-                moco_functional_two.append(moco_functional_two_frame.numpy())
+                moco_functional_two= np.append(moco_functional_two,moco_functional_two_frame.numpy(),axis=2)
                 
                 #moco_functional_two[:,:,:, counter] = moco_functional_two.numpy()
                 # np.save(pathlib.Path(temp_save_path, moving_path.name + '_slice' + str(slice) + '_index'
@@ -196,18 +198,15 @@ def moco_slice(
     
    
     # save
-    moco = np.moveaxis(np.asarray(moco),0,-1) # reorder from t,x,y to x,y,t
     np.save(pathlib.Path(temp_save_path, moving_path.name + '_slice' + str(slice) + '_index'
                             + str(start_index) + '-' + str(end_index)),
                 moco)
     if functional_path_one is not None: 
-        moco_functional_one = np.moveaxis(np.asarray(moco_functional_one),0,-1) # reorder from t,x,y to x,y,t
         np.save(pathlib.Path(temp_save_path, functional_path_one.name + '_slice' + str(slice) + '_index'
                                 + str(start_index) + '-' + str(end_index)),
                     moco_functional_one)
     
     if functional_path_two is not None:
-        moco_functional_two = np.moveaxis(np.asarray(moco_functional_two),0,-1) # reorder from t,x,y to x,y,t
         np.save(pathlib.Path(temp_save_path, functional_path_two.name + '_slice' + str(slice) + '_index'
                                 + str(start_index) + '-' + str(end_index)),
                     moco_functional_two)
