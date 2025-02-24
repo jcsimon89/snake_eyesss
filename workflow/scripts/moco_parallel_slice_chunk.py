@@ -115,7 +115,10 @@ def moco_slice(
     # Load moving proxy in this process
     moving_proxy = nib.load(moving_path)
 
-    moco = []
+    #initialize numpy array with the same shape as the fixed image (x,y), then add t dimension to append over
+    moco = np.empty(fixed_data.shape[0:1], dtype='float32')
+    moco = np.expand_dims(moco, axis=2)
+    print('shape of moco: ' + str(moco.shape))
 
     for index in indices:
         # Load data in a given process
@@ -131,7 +134,7 @@ def moco_slice(
                                 total_sigma=total_sigma,
                                 aff_metric=aff_metric)
 
-        moco.append(moco_frame["warpedmovout"].numpy())
+        moco = np.append(moco, moco_frame["warpedmovout"].numpy(),2 )#moco.append(moco_frame["warpedmovout"].numpy())
 
         #print('Registration took ' + repr(time.time() - t0) + 's')
 
