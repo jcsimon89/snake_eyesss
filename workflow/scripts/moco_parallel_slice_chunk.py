@@ -134,9 +134,12 @@ def moco_slice(
                                 flow_sigma=flow_sigma,
                                 total_sigma=total_sigma,
                                 aff_metric=aff_metric)
-
-        moco = np.append(moco, moco_frame["warpedmovout"].numpy(),axis=2)
-        print('shape of moco after data assignment, index = ' + str(index) + ': ' + str(moco.shape))
+        if index == start_index:
+            moco = np.expand_dims(moco_frame["warpedmovout"].numpy(),axis=2,dtype='float32')
+            print('shape of moco after data assignment, index = ' + str(index) + ': ' + str(moco.shape))
+        else:
+            moco = np.append(moco,np.expand_dims(moco_frame["warpedmovout"].numpy(),axis=2,dtype='float32'), axis=2, dtype='float32')
+            print('shape of moco after data assignment, index = ' + str(index) + ': ' + str(moco.shape))
 
         #print('Registration took ' + repr(time.time() - t0) + 's')
 
@@ -160,27 +163,28 @@ def moco_slice(
             moving_frame_one_ants = ants.from_numpy(np.asarray(current_functional_one, dtype=np.float32))
             # to motion correction for functional image
             moco_functional_one_frame = ants.apply_transforms(fixed_ants, moving_frame_one_ants, transformlist)
-            moco_functional_one = np.append(moco_functional_one,moco_functional_one_frame.numpy(),axis=2)
-            # put moco functional image into preallocated array
-            #moco_functional_one[:, :, :, counter] = moving_frame_one_ants.numpy()
-            #print('apply transforms took ' + repr(time.time() - t0) + 's')
-            # np.save(pathlib.Path(temp_save_path, moving_path.name + '_slice' + str(slice) + '_index'
-            #                 + str(index)),
-            #         moving_frame_one_ants.numpy())
 
+            if index == start_index:
+                moco_functional_one = np.expand_dims(moco_functional_one_frame.numpy(),axis=2,dtype='float32')
+                print('shape of moco_functional_one after data assignment, index = ' + str(index) + ': ' + str(moco_functional_one.shape))
+            else:
+                moco_functional_one = np.append(moco_functional_one,np.expand_dims(moco_functional_one_frame.numpy(),axis=2,dtype='float32'), axis=2, dtype='float32')
+                print('shape of moco_functional_one after data assignment, index = ' + str(index) + ': ' + str(moco_functional_one.shape))
+
+            
             if functional_path_two is not None:
                 current_functional_two = functional_two_proxy.dataobj[:,:,slice, index]
                 moving_frame_two_ants = ants.from_numpy(np.asarray(current_functional_two, dtype=np.float32))
                 # to motion correction for functional image
                 moco_functional_two_frame = ants.apply_transforms(fixed_ants, moving_frame_two_ants, transformlist)
-                moco_functional_two= np.append(moco_functional_two,moco_functional_two_frame.numpy(),axis=2)
                 
-                #moco_functional_two[:,:,:, counter] = moco_functional_two.numpy()
-                # np.save(pathlib.Path(temp_save_path, moving_path.name + '_slice' + str(slice) + '_index'
-                #             + str(index)),
-                #         moco_functional_two.numpy())
+                if index == start_index:
+                    moco_functional_two = np.expand_dims(moco_functional_two_frame.numpy(),axis=2,dtype='float32')
+                    print('shape of moco_functional_two after data assignment, index = ' + str(index) + ': ' + str(moco_functional_two.shape))
+                else:
+                    moco_functional_two = np.append(moco_functional_two,np.expand_dims(moco_functional_two_frame.numpy(),axis=2,dtype='float32'), axis=2, dtype='float32')
+                    print('shape of moco_functional_two after data assignment, index = ' + str(index) + ': ' + str(moco_functional_two.shape))
 
-        #t0=time.time()
         # delete writen files:
         # Delete transform info - might be worth keeping instead of huge resulting file? TBD
             for x in transformlist:
