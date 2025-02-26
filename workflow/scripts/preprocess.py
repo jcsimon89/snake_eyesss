@@ -93,7 +93,7 @@ def make_mean_brain(fly_directory,
             # Doesn't load anything, just points to a given location
             brain_proxy = nib.load(current_path_to_read)
             # Load data, it's np.uint16 at this point, no point changing it.
-            brain_data = np.asarray(brain_proxy.dataobj, dtype=np.uint16)
+            brain_data = np.asarray(brain_proxy.dataobj, dtype=np.float32)
         elif current_path_to_read.suffix == ".h5":
             # Original: Not great because moco brains are saved as float32
             #with h5py.File(current_path_to_read, "r") as hf:
@@ -178,7 +178,7 @@ def bleaching_qc(
         # Doesn't load anything to memory, just a pointer
         brain_proxy = nib.load(current_path_to_read)
         # Load data into memory, brain at this point is half of uint14, no point doing float
-        brain = np.asarray(brain_proxy.dataobj, dtype=np.uint16)
+        brain = np.asarray(brain_proxy.dataobj, dtype=np.float32)
         utils.check_for_nan_and_inf_func(brain)
         # calculate mean over time
         data_mean[current_path_to_read.name] = np.mean(brain, axis=(0, 1, 2))
