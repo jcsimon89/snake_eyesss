@@ -64,12 +64,10 @@ WIDTH = 120 # Todo: make a global parameter class somewhere to keep track of thi
 TESTING = False
 
 def moco_slice(
-    slice,
+    n_proc,
     fixed_path,
     moving_path,
     functional_channel_paths,
-    temp_save_path,
-    fly_directory
 ):
     """
     Loop doing the motion correction for a given set of index.
@@ -79,382 +77,89 @@ def moco_slice(
     :param index:
     :return:
     """
-
-    # Keeping track of time
-    t_function_start = time.time()
-    # Load meanbrain (fixed)
-    fixed_proxy = nib.load(fixed_path)
-    fixed_data = np.squeeze(np.asarray(fixed_proxy.dataobj[:,:,slice],dtype='float32')) #source data xyz into xy
-
-
-    # Load moving proxy in this process
-    moving_proxy = nib.load(moving_path)
-    moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-    moving_data = np.moveaxis(moving_data,[0, 2], [2, 0]) #rearrange moving axes to t,x,y
-
-    pr = ParaReg(eg_mode=StackReg.RIGID_BODY, smooth=smooth, avg_wid=avg_wid, n_proc=cores)
-    pr.register(moving_data,fixed_data)
-
-    # apply transform, reorder axes back to xyt
-    moving_data = pr.transform(moving_data)
-    moving_data = np.moveaxis(moving_data,[0, 2], [2, 0]) #rearrange moving axes back to x,y,t
-
-    # save warped slice in temp folder
-    np.save(pathlib.Path(temp_save_path, moving_path.name + '_slice{}_'.format(slice)),
-            moving_data)
-
     # Unpack functional paths
     if functional_channel_paths is None:
         functional_path_one = None
         functional_path_two = None
     elif len(functional_channel_paths) == 1:
         functional_path_one = functional_channel_paths[0]
+        functional_one_proxy = nib.load(functional_path_one)
+        functional_data_one_final = np.empty(functional_one_proxy.shape)
         functional_path_two = None
     elif len(functional_channel_paths) == 2:
         functional_path_one = functional_channel_paths[0]
+        functional_one_proxy = nib.load(functional_path_one)
+        functional_data_one_final = np.empty(functional_one_proxy.shape)
         functional_path_two = functional_channel_paths[1]
+        functional_two_proxy = nib.load(functional_path_two)
+        functional_data_two_final = np.empty(functional_two_proxy.shape)
     else:
         # Fix this, should be identical to if!
         functional_path_one = None
         functional_path_two = None
-    if functional_path_one is not None:
-        # Load functional one proxy in this process
-        functional_one_proxy = nib.load(functional_path_one)
-        if functional_path_two is not None:
-            functional_two_proxy = nib.load(functional_path_two)
+    
+    # Load meanbrain (fixed)
+    fixed_proxy = nib.load(fixed_path)
+    n_slices = fixed_proxy.shape[-1] #xyz
+    # Load moving proxy in this process
+    moving_proxy = nib.load(moving_path)
+    
+    moving_data_final = np.empty(moving_proxy.shape)
 
-    if functional_path_one is not None:
-        functional_data_one = np.squeeze(np.asarray(functional_one_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-        functional_data_one = np.moveaxis(functional_data_one,[0, 2], [2, 0]) #rearrange moving axes to t,x,y
+    for slice in range(n_slices):
+        # Keeping track of time
+        t_function_start = time.time()
+        fixed_data = np.squeeze(np.asarray(fixed_proxy.dataobj[:,:,slice],dtype='float32')) #source data xyz into xy
+
+        moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
+        moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
+
+        pr = ParaReg(reg_mode=StackReg.RIGID_BODY, smooth=smooth, avg_wid=avg_wid, n_proc=n_proc)
+        print('size of moving_data: ' + str(moving_data.shape))
+        print('size of fixed_data: ' + str(fixed_data.shape))
+        pr.register(moving_data,fixed_data)
 
         # apply transform, reorder axes back to xyt
-        functional_data_one = pr.transform(functional_data_one)
-        functional_data_one = np.moveaxis(functional_data_one,[0, 2], [2, 0]) #rearrange moving axes back to x,y,t
+        moving_data = pr.transform(moving_data)
+        moving_data = np.moveaxis(moving_data, 0, -1)#rearrange moving axes back to x,y,t
 
-        # save warped slice in temp folder
-        np.save(pathlib.Path(temp_save_path, functional_path_one.name + '_slice{}_'.format(slice)),
-            functional_data_one)
+        moving_data_final[:,:,slice,:] = moving_data
+        
 
-        if functional_path_two is not None:
-            functional_data_two = np.squeeze(np.asarray(functional_two_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-            functional_data_two = np.moveaxis(functional_data_two,[0, 2], [2, 0]) #rearrange moving axes to t,x,y
+        if functional_path_one is not None:
+            functional_data_one = np.squeeze(np.asarray(functional_one_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
+            functional_data_one = np.moveaxis(functional_data_one, -1, 0) #rearrange moving axes to t,x,y
 
             # apply transform, reorder axes back to xyt
-            functional_data_two = pr.transform(functional_data_two)
-            functional_data_two = np.moveaxis(functional_data_two,[0, 2], [2, 0]) #rearrange moving axes back to x,y,t
-            
-            # save warped slice in temp folder
-            np.save(pathlib.Path(temp_save_path, functional_path_two.name + '_slice{}_'.format(slice)),
-            functional_data_two)
+            functional_data_one = pr.transform(functional_data_one)
+            functional_data_one = np.moveaxis(functional_data_one, 0, -1) #rearrange moving axes back to x,y,t
+            functional_data_one_final[:,:,slice,:] = functional_data_one
 
-    #TODO: save transform params
+            if functional_path_two is not None:
+                functional_data_two = np.squeeze(np.asarray(functional_two_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
+                functional_data_two = np.moveaxis(functional_data_two, -1, 0) #rearrange moving axes to t,x,y
 
-    print('Motion correction for ' + moving_path.as_posix()
-          + 'at slice ' + str(slice) + ' took : '
-          + repr(round(time.time() - t_function_start, 1))
-          + 's\n')
+                # apply transform, reorder axes back to xyt
+                functional_data_two = pr.transform(functional_data_two)
+                functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
+                functional_data_two_final[:,:,slice,:] = functional_data_two
 
+        #TODO: save transform params
 
-def find_missing_temp_files(fixed_path,
-                            moving_path,
-                            functional_channel_paths,
-                            temp_save_path,
-                            fly_directory
-                            ):
-    """
-    It can happen that registration of one or a few images fails.
-    This function takes the temp folder and runs through it and
-    tries to identify missing files (e.g. if 'index_0', 'index_1' and 'index_3'
-    exist and 'index_2' is missing.
-    If it find a missing frame, call the motion_correction function on that
-    index, wait and try again.
-    :param temp_save_path:
-    :return:
-    """
-
-    start_time = time.time()
-    # A list to keep track of missing files!
-    slice_of_missing_files = []
-
-    # Put moving anatomy image into a proxy for nibabel
-    moving_proxy = nib.load(moving_path)
-    # Read the header to get dimensions
-    brain_shape = moving_proxy.header.get_data_shape()
-    nslices = brain_shape[2] #assumes data is x,y,z,t
-
-    for slice in range(nslices):
-        slice_tracker = 0
-        for current_file in natsort.natsorted(temp_save_path.iterdir()):
-            #print('Finding missing files: current_file ' + current_file.name)
-            # Check if moving_path.name, for example channel_1.nii is in filename
-            # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
-            if '.npy' in current_file.name and moving_path.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-                # Extract index number and slice number
-                if slice == slice_tracker:
-                    # Great!
-                    pass
-                else:
-                    # in case more than one file (e.g. 1 & 2) are missing!
-                    while slice > slice_tracker:
-                        print('Missing slice: ' + repr(slice_tracker))
-                        slice_of_missing_files.append(slice_tracker)
-                        slice_tracker+=1 #
-                # add 1 to be prepared for the next loop!
-                slice_tracker+=1
-        # it's possible that we are missing only functional files but not anatomical files.
-        # Also collect those
-        if functional_channel_paths is None:
-            functional_path_one = None
-            functional_path_two = None
-        elif len(functional_channel_paths) == 1:
-            functional_path_one = functional_channel_paths[0]
-            functional_path_two = None
-        elif len(functional_channel_paths) == 2:
-            functional_path_one = functional_channel_paths[0]
-            functional_path_two = functional_channel_paths[1]
-        else:
-            functional_path_one = None
-            functional_path_two = None
-        if functional_path_one is not None:
-            slice_tracker = 0
-            for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                if '.npy' in current_file.name and functional_path_one.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-                    if slice == slice_tracker:
-                        # Great!
-                        pass
-                    else:
-                        # in case more than one file (e.g. 1 & 2) are missing!
-                        while slice > slice_tracker:
-                            print('Missing slice: ' + repr(slice_tracker))
-                            slice_of_missing_files.append(slice_tracker) 
-                            slice_tracker += 1  #TODO: change for multiple time indices
-                    #add 1 to be prepared for the next loop!
-                    slice_tracker += 1
-        if functional_path_two is not None:
-            slice_tracker = 0
-            for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                if '.npy' in current_file.name and functional_path_two.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-                    if slice == slice_tracker:
-                        # Great!
-                        pass
-                    else:
-                        # in case more than one file (e.g. 1 & 2) are missing!
-                        while slice > slice_tracker:
-                            slice_of_missing_files.append(slice_tracker)
-                            slice_tracker += 1  ##TODO: change for multiple time indices
-                    # Once slice == slice_tracker, add 1 to be prepared for the next loop!
-                    slice_tracker += 1
-                    # remove duplicate entries
-    slice_of_missing_files = dict.fromkeys(slice_of_missing_files)
-    slice_of_missing_files = list(slice_of_missing_files.keys())
-
-    # loop through index_of_missing_files. If it's an empty list, don't loop and skip
-    if len(slice_of_missing_files) > 0:
-        print('==========================================================================================')
-        print('WARNING: Not all files that should have been created in the temp folder have been create')
-        print('This might be due to a memory (RAM) error in some registration calls.')
-        print('Will now try to run the missing files but might run out of allocated time as this is done serially.')
-        print('SUGGESTION: Increase available RAM for the motion correction call!')
-        print('==========================================================================================')
-        for i in range(len(slice_of_missing_files)):
-            # Call motion_correction function on index of missing files
-            # THIS IS SLOW AS IT'S NOT PARALLELIZED. Hopefully this only is used
-            # in very rare circumstances.
-            current_slice = slice_of_missing_files[i]
-            print('Missing slice, currently working on: slice ' + str(current_slice))
-            moco_slice(
-                            slice=current_slice,
-                            fixed_path=fixed_path,
-                            moving_path=moving_path,
-                            functional_channel_paths=functional_channel_paths,
-                            temp_save_path=temp_save_path,
-                            fly_directory=fly_directory)
-    print('Checking for missing files took: ' + repr(round(time.time() - start_time,2)))
-
-def combine_temp_files(moving_path,
-                       functional_channel_paths,
-                       temp_save_path,
-                       moving_output_path,
-                       functional_channel_output_paths,
-                       param_output_path):
-    """
-    This function crawls through the temp_save_path and stitched the individual frames
-    together.
-
-    In order to save RAM, it does one imaging file after the other.
-
-    :param moving_path:
-    :param functional_channel_paths:
-    :param temp_save_path:
-    :param moving_output_path:
-    :param functional_channel_output_paths:
-    :param param_output_path:
-    :return:
-    """
-    time_start = time.time()
-    ####
-    # STITCH STRUCTURAL_CHANNEL
-    ####
-    # Put moving anatomy image into a proxy for nibabel
-    moving_proxy = nib.load(moving_path)
-    # Read the header to get dimensions
-    brain_shape = moving_proxy.header.get_data_shape()
-    nslices = brain_shape[2]
-    # Preallocate array for anatomy...
-    stitched_anatomy_brain = np.zeros((brain_shape[0],brain_shape[1],
-                                       brain_shape[2], brain_shape[3]),
-                                      dtype=np.float32)
-    #TODO: transform matrix
-    # Loop through all files. Because it's sorted we don't have to worry about
-    # the index!
-    printlog('Start combining ' + moving_output_path.name)
+        print('Motion correction for ' + moving_path.as_posix()
+            + 'at slice ' + str(slice) + ' took : '
+            + repr(round(time.time() - t_function_start, 1))
+            + 's\n')
     
-    for slice in range(nslices):
-        slice_tracker = 0
-        for current_file in natsort.natsorted(temp_save_path.iterdir()):
-            # Check if moving_path.name, for example channel_1.nii is in filename
-            # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
-            if '.npy' in current_file.name and moving_path.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-                stitched_anatomy_brain[:,:,slice,:] = np.load(current_file)
-                slice_tracker += 1
-            
-            # and collect motcorr_params, this is tiny so no worries about space here
-            # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
-            #TODO: transform parameters
-            # elif 'motcorr_params' in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-            #     index = moco_utils.index_from_filename(current_file)
-            #     transform_matrix[slice,index,:] = np.load(current_file)
-
-
-    if slice_tracker != nslices:
-            print('There seems to be a problem with the temp files for: ' + repr(current_file))
-            print('only {} out of {} slices found'.format(slice_tracker,slice))
-
-    # SAVE
-    # we create a new subfolder called 'moco' where the file is saved
-    # Not a great solution - the definition of the output file should happen in the snakefile, not hidden
-    # in here!
-    savepath_root = pathlib.Path(moving_path.parents[1], 'moco')
-    savepath_root.mkdir(parents=True, exist_ok=True)
-    # Prepare nifti file
+    # save nifti files
     aff = np.eye(4)
-    # Save anatomy channel: - unfortunately this is super memory intensive! We
-    # make a copy of the huge array before we are able so save it.
-    #stitched_anatomy_brain_nifty = nib.Nifti1Image(stitched_anatomy_brain, aff)
-    #stitched_anatomy_brain_nifty.to_filename(moving_output_path)
-    # Try this and check if we still need 4 times memory
-    nib.Nifti1Image(stitched_anatomy_brain, aff).to_filename(moving_output_path)
-
-
-    del stitched_anatomy_brain # Explicitly release the memory (it might not be
-    # immediately released, though. Test this.
-    #del stitched_anatomy_brain_nifty
-
-    printlog('Done combining and saving ' + moving_output_path.name)
-
-    #####
-    # Work on functional paths
-    #####
-    # Unpack functional paths
-    if functional_channel_paths is None:
-        functional_path_one = None
-        functional_path_two = None
-    elif len(functional_channel_paths) == 1:
-        functional_path_one = functional_channel_paths[0]
-        functional_path_two = None
-    elif len(functional_channel_paths) == 2:
-        functional_path_one = functional_channel_paths[0]
-        functional_path_two = functional_channel_paths[1]
-    else: # todo fix, should be same as the 'if' above.
-        functional_path_one = None
-        functional_path_two = None
-
-
-    ####
-    # STITCH FUNCTIONAL 1
-    ####
-
+    nib.Nifti1Image(moving_data_final, aff).to_filename(moving_output_path)
+    
     if functional_path_one is not None:
-        printlog('Start combining ' + functional_channel_output_paths[0].name)
-        # Essentially identical to the code above
-        stitched_functional_one = np.zeros((brain_shape[0],brain_shape[1],
-                                       brain_shape[2], brain_shape[3]),
-                                      dtype=np.float32)
-        nslices = brain_shape[2]
-        for slice in range(nslices):
-                slice_tracker = 0
-                for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                    # Check if moving_path.name, for example channel_1.nii is in filename
-                    # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
-                    if '.npy' in current_file.name and moving_path.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-                        stitched_anatomy_brain[:,:,slice,:] = np.load(current_file)
-                        slice_tracker += 1
-
-        if slice_tracker != nslices:
-                print('There seems to be a problem with the temp files for: ' + repr(current_file))
-                print('only {} out of {} slices found'.format(slice_tracker,slice))
-
-
-        #savepath_func_one = pathlib.Path(savepath_root, functional_path_one.stem + '_moco.nii')
-        #stitched_functional_one_nifty = nib.Nifti1Image(stitched_functional_one, aff)
-        #stitched_functional_one_nifty.to_filename(functional_channel_output_paths[0])
-        nib.Nifti1Image(stitched_functional_one, aff).to_filename(functional_channel_output_paths[0])
-
-        del stitched_functional_one
-        #del stitched_functional_one_nifty
-
-        printlog('Done combining and saving ' + functional_channel_output_paths[0].name)
-        ####
-        # STITCH FUNCTIONAL 2
-        ####
+        nib.Nifti1Image(functional_data_one_final, aff).to_filename(functional_channel_output_paths[0])
+        
         if functional_path_two is not None:
-            stitched_functional_two = np.zeros((brain_shape[0],brain_shape[1],
-                                           brain_shape[2], brain_shape[3]),
-                                          dtype=np.float32)
-            # Collect data for second functional channel
-            printlog('Start combining ' + functional_channel_output_paths[1].name)
-            nslices = brain_shape[2]
-            for slice in range(nslices):
-                    slice_tracker = 0
-                    for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                        # Check if moving_path.name, for example channel_1.nii is in filename
-                        # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
-                        if '.npy' in current_file.name and moving_path.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-                            stitched_anatomy_brain[:,:,slice,:] = np.load(current_file)
-                            slice_tracker += 1
-
-            if slice_tracker != nslices:
-                    print('There seems to be a problem with the temp files for: ' + repr(current_file))
-                    print('only {} out of {} slices found'.format(slice_tracker,slice))
-            # Save the nifty file
-            # stitched_functional_two_nifty = nib.Nifti1Image(stitched_functional_two, aff)
-            # stitched_functional_two_nifty.to_filename(functional_channel_output_paths[1])
-            nib.Nifti1Image(stitched_functional_two, aff).to_filename(functional_channel_output_paths[1])
-
-            del stitched_functional_two
-            #del stitched_functional_two_nifty
-
-            printlog('Done combining and saving ' + functional_channel_output_paths[1].name)
-
-    # After saving the stitched file, delete the temporary files
-    shutil.rmtree(temp_save_path)
-
-    # Save transform matrix:
-    #param_savename = savepath_root, 'motcorr_params.npy'
-    # np.save(param_output_path, transform_matrix) #TODO: save transforms
-
-    print('Took: ' + repr(time.time() - time_start) + 's to combine files')
-
-    t0 = time.time()
-    # ### MAKE MOCO PLOT ###
-    # moco_utils.save_moco_figure( #TODO: change for slice moco
-    #     transform_matrix=transform_matrix,
-    #     parent_path=moving_path.parent,
-    #     moco_dir=moving_output_path.parent,
-    #     printlog=printlog,
-    # )
-
-    # print('took: ' + repr(round(time.time() - t0,2)) + ' s to plot moco')
+            nib.Nifti1Image(functional_data_two_final, aff).to_filename(functional_channel_output_paths[1])
 
 
 if __name__ == '__main__':
@@ -625,11 +330,6 @@ if __name__ == '__main__':
     # why we don't see improved times during benchmarking.
     # Hence, I fixed the core count at 8.
     cores = 40
-    if TESTING:
-        cores = 40
-
-    smooth = False
-    avg_wid = 10
 
     # create an index going from [0,1,...,n]
     time_index = moco_utils.prepare_time_index(moving_path)
@@ -639,34 +339,26 @@ if __name__ == '__main__':
     brain_shape = moving_proxy.header.get_data_shape()
     nslices = brain_shape[2] #assumes data is x,y,z,t
 
-    print('Will perform motion correction on a total of ' + repr(len(time_index)) + ' timepoints and ' + repr(nslices) + ' slices.')
     if TESTING:
-        time_index = list(range(0,100,1))#[0,1,2,3,4,5,6,7]
+        cores = 40
+        time_index = list(range(0,1000,1))#[0,1,2,3,4,5,6,7]
+
+    smooth = False
+    avg_wid = 10
+
+
+    print('Will perform motion correction on a total of ' + repr(len(time_index)) + ' timepoints and ' + repr(nslices) + ' slices.')
 
     time_start = time.time()
     print('Starting MOCO')
 
     # DO MOCO
-    for current_slice in range(nslices):
-        moco_slice(slice=current_slice,
+    moco_slice(
+             n_proc = cores,
              fixed_path=fixed_path,
              moving_path=moving_path,
-             functional_channel_paths=functional_channel_paths,
-             temp_save_path=temp_save_path,
-             fly_directory=fly_directory)
+             functional_channel_paths=functional_channel_paths
+             )
 
-
-    print('Took: ' + repr(time.time() - time_start) + 's to motion correct files')
-    print('Motion correction done. Checking for missing files now')
-
-    find_missing_temp_files(fixed_path,
-                            moving_path,
-                            functional_channel_paths,
-                            temp_save_path,
-                            fly_directory
-                            )
-
-    print('Checked for missing files. See above if something was missing. Combining files now')
-    combine_temp_files(moving_path, functional_channel_paths, temp_save_path,
-                       moving_output_path, functional_channel_output_paths, param_output_path)
-    print('files combined')
+    print('Motion correction done.')
+    print('Took: ' + repr(round(time.time() - time_start,1)) + 's\n to motion correct files')
