@@ -39,13 +39,11 @@ class ParaReg(object):
         if self.smooth:
             img = smooth(img, wid=self.avg_wid)
         register_worker = partial(single_slice_reg, self.sr, ref)
-        t0 = time()
         with Pool(processes=self.n_proc) as p:
             res = p.imap(register_worker, img, 128)
             tmats = []
             for r in tqdm(res):
                 tmats.append(r)
-        print(time()-t0)
         self._tmats = tmats
     
     def transform(self, img):
