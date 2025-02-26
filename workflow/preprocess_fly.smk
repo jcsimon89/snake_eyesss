@@ -416,7 +416,7 @@ rule all:
         # The idea is to use the structural channel for moco!
         ###
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func}/moco/motcorr_params_func.npy",
+               + "/{moco_imaging_paths_func}/moco/tmats_func.npy",
                moco_imaging_paths_func=list_of_paths_func),
 
         expand(str(fly_folder_to_process_oak)
@@ -433,7 +433,7 @@ rule all:
         # Motion correction output STRUCT
         ###
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_struct}/moco/motcorr_params_struct.npy",
+               + "/{moco_imaging_paths_struct}/moco/tmats_struct.npy",
                moco_imaging_paths_struct=list_of_paths_struct),
         expand(str(fly_folder_to_process_oak)
                + "/{moco_imaging_paths_struct}/moco/channel_1_moco_struct.nii" if CH1_EXISTS_STRUCT else [],
@@ -449,7 +449,7 @@ rule all:
         # Motion correction output MISC
         ###
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_misc}/moco/motcorr_params_misc.npy",
+               + "/{moco_imaging_paths_misc}/moco/tmats_misc.npy",
                moco_imaging_paths_misc=list_of_paths_misc_imaging),
         expand(str(fly_folder_to_process_oak)
                + "/{moco_imaging_paths_misc}/moco/channel_1_moco_misc.nii" if CH1_EXISTS_MISC else [],
@@ -683,9 +683,9 @@ rule motion_correction_parallel_slice_func:
         moco_path_ch1 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
         moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
         moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
-        par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/motcorr_params_func.npy"
+        par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/tmats_func.npy",
 
-    shell: shell_python_command + " " + scripts_path + "/scripts/moco_parallel_slice_chunk.py "
+    shell: shell_python_command + " " + scripts_path + "/scripts/moco_parallel_slice_turboreg.py "
         "--fly_directory {fly_folder_to_process_oak} "
         "--dataset_path {dataset_path} "
         "--brain_paths_ch1 {input.brain_paths_ch1} "
@@ -723,9 +723,9 @@ rule motion_correction_parallel_slice_struct:
         moco_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/channel_1_moco_struct.nii" if CH1_EXISTS_STRUCT else [],
         moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/channel_2_moco_struct.nii" if CH2_EXISTS_STRUCT else [],
         moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/channel_3_moco_struct.nii" if CH3_EXISTS_STRUCT else [],
-        par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/motcorr_params_struct.npy"
+        par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/tmats_struct.npy",
 
-    shell: shell_python_command + " " + scripts_path + "/scripts/moco_parallel_slice_chunk.py "
+    shell: shell_python_command + " " + scripts_path + "/scripts/moco_parallel_slice_turboreg.py "
                                        "--fly_directory {fly_folder_to_process_oak} "
                                        "--dataset_path {dataset_path} "
                                        "--brain_paths_ch1 {input.brain_paths_ch1} "
