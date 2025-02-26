@@ -30,7 +30,7 @@ threads: 32, 16 cores, more memory: 02:41:33, Memory Efficiency: 78.12% of 156.0
 when going from 8 to 16 parallel processes! But this is still much faster and memory requirements much
 lower than before!
 """
-
+import os
 import nibabel as nib
 import pathlib
 import ants
@@ -68,14 +68,13 @@ def moco_slice(
     fixed_path,
     moving_path,
     functional_channel_paths,
+    par_output,
 ):
     """
-    Loop doing the motion correction for a given set of index.
-    This is the function that is doing the heavy lifting of the multiprocessing
-    Saves the chunks as npy files in the 'temp_save_path' folder with the index contained
-    encoded in the filename.
-    :param index:
-    :return:
+    Loop doing the motion correction for each slice.
+    This is the function that is doing the heavy lifting of the multiprocessing.
+    Saves the transformed files as nii (float32).
+    Saves transformation matrices as tmats_struct or func.npy (float32)
     """
     # Unpack functional paths
     if functional_channel_paths is None:
@@ -102,21 +101,25 @@ def moco_slice(
     fixed_proxy = nib.load(fixed_path)
     n_slices = fixed_proxy.shape[-1] #xyz
     # Load moving proxy in this process
-    moving_proxy = nib.load(moving_path)
+    moving_proxy = nib.load(moving_path) #xyzt
+    n_timepoints = moving_proxy.shape[-1]
     
     moving_data_final = np.empty(moving_proxy.shape)
 
+    tmats_final = np.empty([3,3,n_slices,n_timepoints]) # for rigid, 3x3 tmat for each slice and timepoint
+    # for a rigid transformation, tmat is a 3x3 matrix [[cos(r) −sin(r) tx],[sin(r) cos(r) ty],[0 0 1]] where r is angle, t is translation
     for slice in range(n_slices):
         # Keeping track of time
         t_function_start = time.time()
-        fixed_data = np.squeeze(np.asarray(fixed_proxy.dataobj[:,:,slice],dtype='float32')) #source data xyz into xy
-
-        moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-        moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
-
+        if n_slices==1: # data is single plane
+            fixed_data = np.asarray(fixed_proxy.dataobj[:,:],dtype='float32') #source data xy
+            moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,:],dtype='float32')) #source data xyt
+        else: # data is volume
+            fixed_data = np.squeeze(np.asarray(fixed_proxy.dataobj[:,:,slice],dtype='float32')) #source data xyz into xy
+            moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
+            moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
+        
         pr = ParaReg(reg_mode=StackReg.RIGID_BODY, smooth=smooth, avg_wid=avg_wid, n_proc=n_proc)
-        print('size of moving_data: ' + str(moving_data.shape))
-        print('size of fixed_data: ' + str(fixed_data.shape))
         pr.register(moving_data,fixed_data)
 
         # apply transform, reorder axes back to xyt
@@ -144,23 +147,45 @@ def moco_slice(
                 functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
                 functional_data_two_final[:,:,slice,:] = functional_data_two
 
-        #TODO: save transform params
+        # save transform params for slice to tmats_final
+        for t_ind in range(n_timepoints):
+            tmats_final[:,:,slice,t_ind] = np.asarray(pr._tmats[t_ind],dtype='float32')
+            # for a rigid transformation, tmat is a 3x3 matrix [[cos(r) −sin(r) tx],[sin(r) cos(r) ty],[0 0 1]] where r is angle, t is translation
 
         print('Motion correction for ' + moving_path.as_posix()
             + 'at slice ' + str(slice) + ' took : '
             + repr(round(time.time() - t_function_start, 1))
             + 's\n')
     
+    # save tmats_final to tmats.npy file
+    np.save(pathlib.Path(par_output), np.squeeze(tmats_final))
+
     # save nifti files
-    aff = np.eye(4)
-    nib.Nifti1Image(moving_data_final, aff).to_filename(moving_output_path)
+    if n_slices==1:
+        aff = np.eye(3)
+    else:
+        aff = np.eye(4)
+
+    nib.Nifti1Image(np.squeeze(moving_data_final), aff).to_filename(moving_output_path)
     
     if functional_path_one is not None:
-        nib.Nifti1Image(functional_data_one_final, aff).to_filename(functional_channel_output_paths[0])
+        nib.Nifti1Image(np.squeeze(functional_data_one_final), aff).to_filename(functional_channel_output_paths[0])
         
         if functional_path_two is not None:
-            nib.Nifti1Image(functional_data_two_final, aff).to_filename(functional_channel_output_paths[1])
+            nib.Nifti1Image(np.squeeze(functional_data_two_final), aff).to_filename(functional_channel_output_paths[1])
 
+    #derive recording metadata path for moco plot - from moco directory
+
+    metadata_dir = os.path.join(moving_output_path.parent, 'imaging')
+    moco_dir = os.path.dirname(moving_output_path)
+
+    moco_utils.save_moco_figure_stackreg(
+    transform_matrix=tmats_final,
+    metadata_dir=metadata_dir,
+    moco_dir=moco_dir,
+    printlog=printlog,
+    n_slices=n_slices
+    )
 
 if __name__ == '__main__':
     ############################
@@ -191,6 +216,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    par_output = args.par_output
+
     #####################
     ### SETUP LOGGING ###
     #####################
@@ -198,11 +225,10 @@ if __name__ == '__main__':
     logfile = utils.create_logfile(fly_directory, function_name="moco_parallel")
     printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
     #utils.print_function_start(logfile, "moco_parallel")
-
     ####################################
-    ### Identify the anatomy channel ###
+    ### Identify the structural channel ###
     ####################################
-    # Normally, we would have one anatomy channel
+    # Normally, we would have one structural channel
     if args.STRUCTURAL_CHANNEL is not None:
         if 'channel_1' == args.STRUCTURAL_CHANNEL:
             moving_path = pathlib.Path(args.brain_paths_ch1)
@@ -216,12 +242,8 @@ if __name__ == '__main__':
             moving_path = pathlib.Path(args.brain_paths_ch3)
             fixed_path = pathlib.Path(args.mean_brain_paths_ch3)
             moving_output_path = pathlib.Path(args.moco_path_ch3)
-        # If we have an antomy channel, we can use the parameters to
-        # motion correct the (generally) less clearly visible functional channel(s)
-        #if args.FUNCTIONAL_CHANNELS != ['']:
         # Convert the string represenation of a list to a list - it's either
         # ['channel_1',] or ['channel_1','channel_2'] or similar
-        # if
         functional_channel_paths = []
         functional_channel_output_paths = []
         if 'channel_1' in args.FUNCTIONAL_CHANNELS and 'channel_1' not in args.STRUCTURAL_CHANNEL:
@@ -256,109 +278,50 @@ if __name__ == '__main__':
                  'You must define the "structural_channel" in the "fly.json" file!')
     """
     # With the 'STRUCTURAL_CHANNEL' we are now enforcing that the user must define
-    # the channel to be used as the structural channel (previously 'anatomy_channel')
-    else:
-        # However, sometimes, we don't have an anatomy channel (e.g.
-        # when we only have GCAMP expressed and not anatomical marker)
-        # Note that it'll just take the first channel as the channel to
-        # perform moco and will ignore the rest. I.e. if your
-        # 'functional_channel: "['channel_1', 'channel_2']" we currently
-        # only do moco on channel_1
-        if 'channel_1' in args.FUNCTIONAL_CHANNELS:
-            moving_path = pathlib.Path(args.brain_paths_ch1)
-            fixed_path = pathlib.Path(args.mean_brain_paths_ch1)
-            moving_output_path = pathlib.Path(args.moco_path_ch1)
-        elif 'channel_2' == args.FUNCTIONAL_CHANNELS:
-            moving_path = pathlib.Path(args.brain_paths_ch2)
-            fixed_path = pathlib.Path(args.mean_brain_paths_ch2)
-            moving_output_path = pathlib.Path(args.moco_path_ch2)
-        elif 'channel_3' == args.FUNCTIONAL_CHANNELS:
-            moving_path = pathlib.Path(args.brain_paths_ch3)
-            fixed_path = pathlib.Path(args.mean_brain_paths_ch3)
-            moving_output_path = pathlib.Path(args.moco_path_ch2)
-        functional_channel_paths = None
-        functional_channel_output_paths = None
+    # the channel to be used as the structural channel (previously 'anatomy_channel').
+    # Even if you don't have a dedicated structural marker/channel, you must define
+    # one of the functional channels as the structural channel.  Moco will be done on the structural
+    # channel and the resulting transforms will be applied to any other functional channels
     """
 
     print("moving_path" + repr(moving_path))
     print("fixed_path" + repr(fixed_path))
     print("moving_output_path" + repr(moving_output_path))
 
-    param_output_path = args.par_output
-
-    ##########################
-    ### ORGANIZE TEMP PATH ###
-    ##########################
-    # Path were the intermediate npy files are saved.
-    # It is important that it's different for each run.
-    # We can just put in on scratch
-    # This will only work if we have a folder called trc and data is in /data, of course
-    #relevant_temp_save_path_part = moving_path.as_posix().split('trc/data/')[-1]
-    dataset_path = pathlib.Path(args.dataset_path)
-    relevant_temp_save_path_part = moving_path.as_posix().split(dataset_path.as_posix())[-1]
-    relevant_temp_save_path_part=relevant_temp_save_path_part[1::] # remove first forward slash
-    ###################
-    # DON'T CHANGE THIS-if this points to your actual experimental folder, the shutil.rmtree
-    # below will DELETE YOUR DATA. THIS MUST BE A TEMPORARY PATH
-    #temp_save_path = pathlib.Path('/scratch/groups/trc', relevant_temp_save_path_part).parent
-    temp_save_path = pathlib.Path(args.moco_temp_folder, relevant_temp_save_path_part).parent
-    ##################
-
-    if TESTING:
-        temp_save_path = pathlib.Path('C:/Users/jcsimon/.snakemake/temp')
-        if temp_save_path.is_dir():
-            shutil.rmtree(temp_save_path)
-
-    if temp_save_path.is_dir():
-        shutil.rmtree(temp_save_path)
-    #else:
-    #    print('WARNING: Did not remove files in ' + str(temp_save_path))
-    #    print('Only remove folders that are on scratch to avoid accidentally deleting source data')
-
-    # create dir
-    # No need for exist_ok=True because the dir should have been deleted just now
-    temp_save_path.mkdir(parents=True)
-
     ########################################
     ### Multiprocessing code starts here ###
     ########################################
-    # Note on cores: I benchmarked using a 30 minute functional dataset (256,128,49,~3300)
-    # with each channel about 10Gb and a large anatomical dataset (1024, 512, 100, 100)
-    # with each channel about 25Gb. I didn't find a difference using 8 vs 16 cores and
-    # the 16 cores try with anatomical actually threw a memory error (with 256Gb of RAM).
-    # There seems to be some multiprocessing going on in ants.registration which might explain
-    # why we don't see improved times during benchmarking.
-    # Hence, I fixed the core count at 8.
+
     cores = 40
 
-    # create an index going from [0,1,...,n]
-    time_index = moco_utils.prepare_time_index(moving_path)
     # Put moving anatomy image into a proxy for nibabel
     moving_proxy = nib.load(moving_path)
     # Read the header to get dimensions
     brain_shape = moving_proxy.header.get_data_shape()
-    nslices = brain_shape[2] #assumes data is x,y,z,t
+    n_timepoints = brain_shape[-1]
+    if len(brain_shape)==4: # xyzt
+        n_slices = brain_shape[2]
+    elif len(brain_shape)==3: # xyt
+        n_slices = 1
 
-    if TESTING:
-        cores = 40
-        time_index = list(range(0,1000,1))#[0,1,2,3,4,5,6,7]
 
+    # moco settings
     smooth = False
-    avg_wid = 10
+    avg_wid = 10 # for smoothing
 
+    print('Will perform motion correction on a total of ' + repr(n_timepoints) + ' timepoints and ' + repr(n_slices) + ' slice(s).')
 
-    print('Will perform motion correction on a total of ' + repr(len(time_index)) + ' timepoints and ' + repr(nslices) + ' slices.')
-
-    time_start = time.time()
     print('Starting MOCO')
+    time_start = time.time()
 
     # DO MOCO
     moco_slice(
              n_proc = cores,
              fixed_path=fixed_path,
              moving_path=moving_path,
-             functional_channel_paths=functional_channel_paths
+             functional_channel_paths=functional_channel_paths,
+             par_output = par_output,
              )
-
-    print('Motion correction done.')
+    
     print('Took: ' + repr(round(time.time() - time_start,1)) + 's\n to motion correct files')
+    print('Motion correction done.')
