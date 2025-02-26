@@ -106,33 +106,37 @@ def moco_slice(
     elif len(functional_channel_paths) == 1:
         functional_path_one = functional_channel_paths[0]
         functional_path_two = None
+        functional_one_proxy = nib.load(functional_path_one)
     elif len(functional_channel_paths) == 2:
         functional_path_one = functional_channel_paths[0]
         functional_path_two = functional_channel_paths[1]
+        functional_one_proxy = nib.load(functional_path_one)
+        functional_two_proxy = nib.load(functional_path_two)
     else:
         # Fix this, should be identical to if!
         functional_path_one = None
         functional_path_two = None
 
     for index in indices:
-        # Load data in a given process
-        current_moving = moving_proxy.dataobj[:,:,slice,index]
-        # Convert to ants images
-        moving_ants = ants.from_numpy(np.asarray(current_moving, dtype=np.float32))
+        # Load data and convert to ants images
+        moving_ants = ants.from_numpy(np.asarray(moving_proxy.dataobj[:,:,slice,index], dtype=np.float32))
 
         #t0 = time.time()
         # Perform the registration
+        
         moco_frame = ants.registration(fixed_ants, moving_ants,
                                 type_of_transform=type_of_transform,
                                 flow_sigma=flow_sigma,
                                 total_sigma=total_sigma,
                                 aff_metric=aff_metric)
+        #print('ants registration took ' + repr(time.time() - t0) + 's')
+        #t0 = time.time()
         if index == start_index:
             moco = np.expand_dims(moco_frame["warpedmovout"].numpy(),axis=2)
         else:
             moco = np.append(moco,np.expand_dims(moco_frame["warpedmovout"].numpy(),axis=2), axis=2)
-
-        #print('Registration took ' + repr(time.time() - t0) + 's')
+        
+        
 
         # Save warped image in temp_save_path with index in filename.
         # np.save(pathlib.Path(temp_save_path, moving_path.name + '_slice' + str(slice) + '_index'
@@ -142,16 +146,11 @@ def moco_slice(
         #t0 = time.time()
         # Next, use the transform info for the functional image
         transformlist = moco_frame["fwdtransforms"]
+        #print('moco frame packaging took ' + repr(time.time() - t0) + 's')
 
         if functional_path_one is not None:
-            # Load functional one proxy in this process
-            functional_one_proxy = nib.load(functional_path_one)
-            if functional_path_two is not None:
-                functional_two_proxy = nib.load(functional_path_two)
-
-        if functional_path_one is not None:
-            current_functional_one = functional_one_proxy.dataobj[:,:,slice,index]
-            moving_frame_one_ants = ants.from_numpy(np.asarray(current_functional_one, dtype=np.float32))
+            #t0 = time.time()
+            moving_frame_one_ants = ants.from_numpy(np.asarray(functional_one_proxy.dataobj[:,:,slice,index], dtype=np.float32))
             # to motion correction for functional image
             moco_functional_one_frame = ants.apply_transforms(fixed_ants, moving_frame_one_ants, transformlist)
 
@@ -161,8 +160,7 @@ def moco_slice(
                 moco_functional_one = np.append(moco_functional_one,np.expand_dims(moco_functional_one_frame.numpy(),axis=2), axis=2)
             
             if functional_path_two is not None:
-                current_functional_two = functional_two_proxy.dataobj[:,:,slice, index]
-                moving_frame_two_ants = ants.from_numpy(np.asarray(current_functional_two, dtype=np.float32))
+                moving_frame_two_ants = ants.from_numpy(np.asarray(functional_two_proxy.dataobj[:,:,slice, index], dtype=np.float32))
                 # to motion correction for functional image
                 moco_functional_two_frame = ants.apply_transforms(fixed_ants, moving_frame_two_ants, transformlist)
                 
@@ -170,8 +168,10 @@ def moco_slice(
                     moco_functional_two = np.expand_dims(moco_functional_two_frame.numpy(),axis=2)
                 else:
                     moco_functional_two = np.append(moco_functional_two,np.expand_dims(moco_functional_two_frame.numpy(),axis=2), axis=2)
+            #print('applying transforms and packaging data took ' + repr(time.time() - t0) + 's')
         # delete writen files:
         # Delete transform info - might be worth keeping instead of huge resulting file? TBD
+            #t0 = time.time()
             for x in transformlist:
                 if ".mat" in x:
                     # Keep transform_matrix, I think this is used to make the plot
@@ -184,9 +184,11 @@ def moco_slice(
 
                 # lets' delete all files created by ants - else we quickly create thousands of files!
                 pathlib.Path(x).unlink()
+            #print('saving transforms took ' + repr(time.time() - t0) + 's')
     
-   
+    
     # save
+    #t0 = time.time()
     np.save(pathlib.Path(temp_save_path, moving_path.name + '_slice' + str(slice) + '_index'
                             + str(start_index) + '-' + str(end_index)),
                 moco)
@@ -199,7 +201,7 @@ def moco_slice(
         np.save(pathlib.Path(temp_save_path, functional_path_two.name + '_slice' + str(slice) + '_index'
                                 + str(start_index) + '-' + str(end_index)),
                     moco_functional_two)
-
+    #print('saving chunk data files took ' + repr(time.time() - t0) + 's')
     print('Motion correction for ' + moving_path.as_posix()
             + 'at slice ' + str(slice) + ', at indices ' + str(start_index) + '-' + str(end_index) + ' took : '
             + repr(round(time.time() - t_function_start, 1))
@@ -271,7 +273,7 @@ def find_missing_temp_files(chunk,fixed_path,
         if functional_path_one is not None:
             index_tracker = 0
             for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                if '.npy' in current_file.name and functional_path_one.name in current_file.name:
+                if '.npy' in current_file.name and functional_path_one.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
                     # Extract index number
                     index_range = moco_utils.index_range_from_filename(current_file)
                     start_index = index_range[0]
@@ -288,7 +290,7 @@ def find_missing_temp_files(chunk,fixed_path,
         if functional_path_two is not None:
             index_tracker = 0
             for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                if '.npy' in current_file.name and functional_path_two.name in current_file.name:
+                if '.npy' in current_file.name and functional_path_two.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
                     # Extract index number
                     index_range = moco_utils.index_from_filename(current_file) 
                     start_index = index_range[0]
@@ -530,6 +532,8 @@ def combine_temp_files(chunk,moving_path,
 
 
 if __name__ == '__main__':
+    setup_time_start = time.time()
+    
     ############################
     ### Organize shell input ###
     ############################
@@ -559,7 +563,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # hard coded moco time chunk size
-    chunk = 5
+    chunk = 50
 
     #####################
     ### SETUP LOGGING ###
@@ -702,13 +706,6 @@ if __name__ == '__main__':
     cores = 40
     # create list of index tuples for each chunk (start_ind, end_ind)
     time_index = moco_utils.prepare_time_index_chunks(moving_path,chunk)
-    if TESTING:
-        cores = 40
-        chunk = 10
-        n_chunks = 3
-        start_ind = list(range(0,n_chunks*chunk-1,chunk))
-        end_ind = list(range(0+chunk-1,n_chunks*chunk,chunk))
-        time_index = list(tuple([start_ind[i],end_ind[i]]) for i in range(len(start_ind)))
 
     # Put moving anatomy image into a proxy for nibabel
     moving_proxy = nib.load(moving_path)
@@ -716,6 +713,16 @@ if __name__ == '__main__':
     brain_shape = moving_proxy.header.get_data_shape()
     nslices = brain_shape[2] #assumes data is x,y,z,t
 
+    if TESTING:
+        cores = 40
+        nslices = 1
+        chunk = 30
+        n_chunks = 40
+        start_ind = list(range(0,n_chunks*chunk-1,chunk))
+        end_ind = list(range(0+chunk-1,n_chunks*chunk,chunk))
+        time_index = list(tuple([start_ind[i],end_ind[i]]) for i in range(len(start_ind)))
+
+    print('Took: ' + repr(time.time() - setup_time_start) + 's for setup before moco')
     print('Will perform motion correction on a total of ' + repr(len(time_index)) + ' chunks, ' + repr(time_index[-1][1] + 1) + ' timepoints, and ' + repr(nslices) + ' slices.')
 
     # Manual multiprocessing, essentially copy-paste from answer here:
@@ -723,13 +730,13 @@ if __name__ == '__main__':
     pool = multiprocessing.Pool(cores)
     # Keep track of number of processes
     running_processes = 0
-    counter = 0
     # Make a list to keep track of the spawned child processes
     child_processes = []
     # Define what the max number of processes is
     max_processes = cores
 
     time_start_moco = time.time()
+
     # Loop thorugh slices
     for current_slice in range(nslices):
     # Loop through index, yield 0, 1 etc.
@@ -738,7 +745,7 @@ if __name__ == '__main__':
             end_ind = current_index_range[1]
             current_time_chunk = list(range(start_ind,end_ind+1,1))
             # Run until break
-            while True:
+            while 1:
                 # Only fork a new process is there are less processes running than max_processes
                 if running_processes < max_processes:
                     # Define process: Target is a function, args are the arguments
@@ -756,17 +763,17 @@ if __name__ == '__main__':
                     child_processes.append(p)
                     # to keep track of running_processes
                     running_processes += 1
-                    counter += 1
                     # get out of the current 'while' loop and go back to the for loop
                     break
                 # Processor wait loop if we don't have running_processes < max_processes
                 else:
                     # Stay here until break is called
-                    while True:
+                    while 1:
                         # loop through the child_processes
                         for current_child_process in range(len(child_processes)):
                             # Check if process is still running
                             if child_processes[current_child_process].is_alive():
+                                time.sleep(0.2)
                                 # Continue for loop (i.e. check next child_process)
                                 continue
                             else:
