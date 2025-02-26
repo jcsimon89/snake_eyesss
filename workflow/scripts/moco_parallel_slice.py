@@ -214,9 +214,9 @@ def find_missing_temp_files(fixed_path,
             #print('Finding missing files: current_file ' + current_file.name)
             # Check if moving_path.name, for example channel_1.nii is in filename
             # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
-            if '.npy' in current_file.name and moving_path.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
+            if '.npy' in current_file.name and moving_path.name in current_file.name and '_slice{}_'.format(slice) in current_file.name: 
                 # Extract index number and slice number
-                index = moco_utils.index_from_filename(current_file) #TODO: change for multiple time indices
+                index = moco_utils.index_from_filename(current_file) 
                 if index == index_tracker:
                     # Great!
                     pass
@@ -227,7 +227,7 @@ def find_missing_temp_files(fixed_path,
                         slice_and_index_of_missing_files.append(tuple([slice,index_tracker]))
                         index_tracker+=1 #
                 # Once index == index_tracker, add 1 to be prepared for the next loop!
-                index_tracker+=1 #TODO: change for multiple time indices
+                index_tracker+=1 
         # it's possible that we are missing only functional files but not anatomical files.
         # Also collect those
         if functional_channel_paths is None:
@@ -245,9 +245,9 @@ def find_missing_temp_files(fixed_path,
         if functional_path_one is not None:
             index_tracker = 0
             for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                if '.npy' in current_file.name and functional_path_one.name in current_file.name:
+                if '.npy' in current_file.name and functional_path_one.name in current_file.name and '_slice{}_'.format(slice) in current_file.name: 
                     # Extract index number
-                    index = moco_utils.index_from_filename(current_file) #TODO: change for multiple time indices
+                    index = moco_utils.index_from_filename(current_file) 
                     if index == index_tracker:
                         # Great!
                         pass
@@ -255,15 +255,15 @@ def find_missing_temp_files(fixed_path,
                         # in case more than one file (e.g. 1 & 2) are missing!
                         while index > index_tracker:
                             slice_and_index_of_missing_files.append(tuple([slice,index_tracker])) 
-                            index_tracker += 1  #TODO: change for multiple time indices
+                            index_tracker += 1  
                     # Once index == index_tracker, add 1 to be prepared for the next loop!
                     index_tracker += 1
         if functional_path_two is not None:
             index_tracker = 0
             for current_file in natsort.natsorted(temp_save_path.iterdir()):
-                if '.npy' in current_file.name and functional_path_two.name in current_file.name:
+                if '.npy' in current_file.name and functional_path_two.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
                     # Extract index number
-                    index = moco_utils.index_from_filename(current_file) #TODO: change for multiple time indices
+                    index = moco_utils.index_from_filename(current_file) 
                     if index == index_tracker:
                         # Great!
                         pass
@@ -271,7 +271,7 @@ def find_missing_temp_files(fixed_path,
                         # in case more than one file (e.g. 1 & 2) are missing!
                         while index > index_tracker:
                             slice_and_index_of_missing_files.append(tuple([slice,index_tracker]))
-                            index_tracker += 1  ##TODO: change for multiple time indices
+                            index_tracker += 1  #
                     # Once index == index_tracker, add 1 to be prepared for the next loop!
                     index_tracker += 1
                     # remove duplicate entries
@@ -291,7 +291,7 @@ def find_missing_temp_files(fixed_path,
             # THIS IS SLOW AS IT'S NOT PARALLELIZED. Hopefully this only is used
             # in very rare circumstances.
             current_slice = slice_and_index_of_missing_files[i][0]
-            current_index = slice_and_index_of_missing_files[i][1] #TODO: change for multiple time indices
+            current_index = slice_and_index_of_missing_files[i][1] 
             print('Missing (slice,index) currently working on: (' + str(current_slice) + ',' + str(current_index) + ')')
             moco_slice(current_index,
                                 current_slice,
@@ -348,7 +348,7 @@ def combine_temp_files(moving_path,
             # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
             if '.npy' in current_file.name and moving_path.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
                 # Extract index number
-                index = moco_utils.index_from_filename(current_file) #TODO: change for multiple time indices
+                index = moco_utils.index_from_filename(current_file) 
                 stitched_anatomy_brain[:,:,slice,index] = np.load(current_file)
                 # Just a sanity check! E.g. for first image we expect '0'
                 if index_tracker != index:
@@ -362,7 +362,7 @@ def combine_temp_files(moving_path,
             # and collect motcorr_params, this is tiny so no worries about space here
             # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
             elif 'motcorr_params' in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-                index = moco_utils.index_from_filename(current_file) #TODO: change for multiple time indices
+                index = moco_utils.index_from_filename(current_file) 
                 transform_matrix[slice,index,:] = np.load(current_file)
     # SAVE
     # we create a new subfolder called 'moco' where the file is saved
@@ -420,7 +420,7 @@ def combine_temp_files(moving_path,
             for current_file in natsort.natsorted(temp_save_path.iterdir()):
                     # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
                     if '.npy' in current_file.name and functional_path_one.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-                        index = moco_utils.index_from_filename(current_file) #TODO: change for multiple time indices
+                        index = moco_utils.index_from_filename(current_file) 
                         stitched_functional_one[:,:,slice,index] = np.load(current_file)
                         # Just a sanity check! E.g. for first image we expect '0'
                         if index_tracker != index:
@@ -454,7 +454,7 @@ def combine_temp_files(moving_path,
                 for current_file in natsort.natsorted(temp_save_path.iterdir()):
                     # NOTE: '_slice{}_' is essential, otherwis searching for slice1 returns slice1 and slice10
                     if '.npy' in current_file.name and functional_path_two.name in current_file.name and '_slice{}_'.format(slice) in current_file.name:
-                        index = moco_utils.index_from_filename(current_file) #TODO: change for multiple time indices
+                        index = moco_utils.index_from_filename(current_file) 
                         stitched_functional_two[:, :, slice, index] = np.load(current_file)
                         # Just a sanity check! E.g. for first image we expect '0'
                         if index_tracker != index:
@@ -666,7 +666,7 @@ if __name__ == '__main__':
         cores = 40
 
     # create an index going from [0,1,...,n]
-    time_index = moco_utils.prepare_time_index(moving_path) #TODO: change for multiple time indices
+    time_index = moco_utils.prepare_time_index(moving_path) 
     # Put moving anatomy image into a proxy for nibabel
     moving_proxy = nib.load(moving_path)
     # Read the header to get dimensions
@@ -692,7 +692,7 @@ if __name__ == '__main__':
     # Loop thorugh slices
     for current_slice in range(nslices):
     # Loop through index, yield 0, 1 etc.
-        for current_index in time_index: #TODO: change for multiple time indices
+        for current_index in time_index: 
             # Run until break
             while True:
                 # Only fork a new process is there are less processes running than max_processes
@@ -724,6 +724,7 @@ if __name__ == '__main__':
                             # Check if process is still running
                             if child_processes[current_child_process].is_alive():
                                 # Continue for loop (i.e. check next child_process)
+                                time.sleep(0.2)
                                 continue
                             else:
                                 # If it's found that a child process isn't running anymore,
