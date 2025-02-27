@@ -149,6 +149,62 @@ def save_moco_figure(transform_matrix, parent_path, moco_dir, printlog):
             return
     printlog("Could not find xml file for scan dimensions. Skipping plot.")
 
+def save_moco_figure_stackreg_rigid(transform_matrix, metadata_dir, moco_dir, printlog, n_slices):
+    """
+
+    :param transform_matrix:
+    :param parent_path:
+    :param moco_dir:
+    :param printlog:
+    :return:
+    """
+
+    xml_path = None
+    # Get voxel resolution for figure
+    for current_file in pathlib.Path(metadata_dir).iterdir():
+        if "recording_metadata.xml" in current_file.name:
+            xml_path = current_file
+
+            # if xml_path == None:
+            # 	printlog('Could not find xml file for scan dimensions. Skipping plot.')
+            # 	return
+            # elif not xml_path.is_file():
+            # 	printlog('Could not find xml file for scan dimensions. Skipping plot.')
+            # 	return
+
+            # transform_matrix dimensions: 3,3,slice,timepoint
+            printlog(f"Found xml file.")
+            x_res, y_res, z_res = utils.get_resolution(xml_path)
+
+            for slice in range(n_slices):
+                # Save figure of motion over time for each slice
+                # save_file = os.path.join(moco_dir, 'motion_correction.png')
+                save_file_translation = pathlib.Path(moco_dir, "motion_correction_slice_{}_translation.png".format(slice))
+                fig1 = mpl.pyplot.figure(figsize=(10, 10))
+                ax1 = fig1.add_subplot(111)
+                ax1.plot(transform_matrix[0][2][slice][:] * x_res, label="x")
+                ax1.plot(transform_matrix[1][2][slice][:] * y_res, label="y")
+                ax1.set_ylabel("Motion Correction, um")
+                ax1.set_xlabel("Frame")
+                ax1.set_title(moco_dir + "moco_slice_{}_translation".format(slice))
+                mpl.pyplot.legend()
+                fig1.savefig(save_file_translation, bbox_inches="tight", dpi=300)
+                
+                save_file_angle = pathlib.Path(moco_dir, "motion_correction_slice_{}_angle.png".format(slice))
+                fig2 = mpl.pyplot.figure(figsize=(10, 10))
+                ax2 = fig2.add_subplot(111)
+                transform_angle = []
+                for time_ind in range(transform_matrix.shape[-1]):
+                    transform_angle.append(math.acos(transform_matrix[0][0][slice][time_ind]))
+                ax2.plot(transform_angle , label="angle")
+                ax2.set_ylabel("angle (rad)")
+                ax2.set_xlabel("Frame")
+                ax2.set_title(moco_dir + "moco_slice_{}_angle".format(slice))
+                fig2.savefig(save_file_angle, bbox_inches="tight", dpi=300)
+
+            return
+    printlog("Could not find xml file for scan dimensions. Skipping plot.")
+
 
 def print_progress_table_moco(total_vol, complete_vol, printlog, start_time, width):
     """
