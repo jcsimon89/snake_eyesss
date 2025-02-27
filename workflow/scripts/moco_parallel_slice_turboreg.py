@@ -176,10 +176,10 @@ def moco_slice(
 
     #derive recording metadata path for moco plot - from moco directory
 
-    metadata_dir = os.path.join(moving_output_path.parent, 'imaging')
+    metadata_dir = os.path.join(moving_output_path.parent.parent, 'imaging')
     moco_dir = os.path.dirname(moving_output_path)
 
-    moco_utils.save_moco_figure_stackreg(
+    moco_utils.save_moco_figure_stackreg_rigid(
     transform_matrix=tmats_final,
     metadata_dir=metadata_dir,
     moco_dir=moco_dir,
