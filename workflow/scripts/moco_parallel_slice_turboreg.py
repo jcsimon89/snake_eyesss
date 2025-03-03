@@ -64,11 +64,11 @@ WIDTH = 120 # Todo: make a global parameter class somewhere to keep track of thi
 TESTING = False
 
 def moco_slice(
-    n_proc,
     fixed_path,
     moving_path,
     functional_channel_paths,
     par_output,
+    moco_settings
 ):
     """
     Loop doing the motion correction for each slice.
@@ -119,7 +119,7 @@ def moco_slice(
             moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
             moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
         
-        pr = ParaReg(reg_mode=StackReg.RIGID_BODY, smooth=smooth, avg_wid=avg_wid, n_proc=n_proc)
+        pr = ParaReg(reg_mode=moco_settings['reg_mode'], smooth=moco_settings['smooth'], avg_wid=moco_settings['avg_wid'], n_proc=moco_settings['n_proc'])
         pr.register(moving_data,fixed_data)
 
         # apply transform, reorder axes back to xyt
@@ -186,6 +186,7 @@ def moco_slice(
     printlog=printlog,
     n_slices=n_slices
     )
+    
 
 if __name__ == '__main__':
     ############################
@@ -306,8 +307,12 @@ if __name__ == '__main__':
 
 
     # moco settings
-    smooth = False
-    avg_wid = 10 # for smoothing
+    moco_settings = {}
+    moco_settings['reg_mode'] = StackReg.RIGID_BODY
+    moco_settings['smooth'] = False
+    moco_settings['avg_wid'] = 1 # of frames for smoothing moving average
+    moco_settings['n_proc'] = cores
+
 
     print('Will perform motion correction on a total of ' + repr(n_timepoints) + ' timepoints and ' + repr(n_slices) + ' slice(s).')
 
@@ -316,11 +321,11 @@ if __name__ == '__main__':
 
     # DO MOCO
     moco_slice(
-             n_proc = cores,
              fixed_path=fixed_path,
              moving_path=moving_path,
              functional_channel_paths=functional_channel_paths,
              par_output = par_output,
+             moco_settings = moco_settings,
              )
     
     print('Took: ' + repr(round(time.time() - time_start,1)) + 's\n to motion correct files')
