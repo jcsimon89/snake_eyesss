@@ -27,17 +27,19 @@ def smooth(x, axis=0, wid=5):
     return y
 
 class ParaReg(object):
-    def __init__(self, reg_mode, smooth, avg_wid, n_proc):
+    def __init__(self, reg_mode, smooth, avg_wid, n_proc, mean_frames):
         super().__init__()
         self.sr = StackReg(reg_mode)
         self.smooth = smooth
         self.avg_wid = avg_wid
         self.n_proc=n_proc
         self._tmats=[]
+        self.mean_frames = mean_frames
     
-    def register(self, img, ref):
+    def register(self, img):
         if self.smooth:
             img = smooth(img, wid=self.avg_wid)
+        ref = img[:self.mean_frames, :, :].mean(axis=0)
         register_worker = partial(single_slice_reg, self.sr, ref)
         with Pool(processes=self.n_proc) as p:
             res = p.imap(register_worker, img, 128)
