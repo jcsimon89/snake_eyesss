@@ -61,7 +61,7 @@ from brainsss import utils
 # Global variable
 ###
 WIDTH = 120 # Todo: make a global parameter class somewhere to keep track of this variable!
-TESTING = False
+#TESTING = False
 
 def moco_slice(
     fixed_path,
@@ -119,7 +119,10 @@ def moco_slice(
             moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
             moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
         
-        pr = ParaReg(reg_mode=moco_settings['reg_mode'], smooth=moco_settings['smooth'], avg_wid=moco_settings['avg_wid'], n_proc=moco_settings['n_proc'])
+        pr = ParaReg(reg_mode=moco_settings['reg_mode'],
+                     smooth=moco_settings['smooth'],
+                     avg_wid=moco_settings['avg_wid'],
+                     n_proc=moco_settings['n_proc'])
         pr.register(moving_data,fixed_data)
 
         # apply transform, reorder axes back to xyt
@@ -215,6 +218,12 @@ if __name__ == '__main__':
 
     parser.add_argument("--moco_temp_folder", nargs="?", help="Where to save the temp file")
 
+    # moco settings
+    parser.add_argument("--moco_transform_type", nargs="?", help="Type of transformation to use") # default is rigid
+    parser.add_argument("--moco_smooth", nargs="?", help="Whether to smooth the data") # default is True for func, False for anat
+    parser.add_argument("--moco_avg_wid", nargs="?", help="Width of the average") # if smooth=True, default is 3 for func, 1 for anat
+    parser.add_argument("--cores", nargs="?", help="Number of cores to use") # default is 40
+
     args = parser.parse_args()
 
     par_output = args.par_output
@@ -293,7 +302,7 @@ if __name__ == '__main__':
     ### Multiprocessing code starts here ###
     ########################################
 
-    cores = 40
+    #cores = 40 (set in moco settings in fly.json now)
 
     # Put moving anatomy image into a proxy for nibabel
     moving_proxy = nib.load(moving_path)
@@ -308,11 +317,12 @@ if __name__ == '__main__':
 
     # moco settings
     moco_settings = {}
-    moco_settings['reg_mode'] = StackReg.RIGID_BODY
-    moco_settings['smooth'] = False
-    moco_settings['avg_wid'] = 1 # of frames for smoothing moving average
-    moco_settings['n_proc'] = cores
+    moco_settings['reg_mode'] = args.moco_transform_type
+    moco_settings['smooth'] = args.moco_smooth
+    moco_settings['avg_wid'] = args.moco_avg_wid
+    moco_settings['n_proc'] = args.cores
 
+    print('moco_settings: ' + repr(moco_settings))
 
     print('Will perform motion correction on a total of ' + repr(n_timepoints) + ' timepoints and ' + repr(n_slices) + ' slice(s).')
 
