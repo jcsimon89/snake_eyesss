@@ -226,6 +226,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    print('args: ' + repr(args))
+
     par_output = args.par_output
 
     #####################
@@ -316,11 +318,19 @@ if __name__ == '__main__':
 
 
     # moco settings
+        # unpack transform type from string
+    if args.moco_transform_type == 'StackReg.RIGID_BODY':
+        moco_transform_type = StackReg.RIGID_BODY
     moco_settings = {}
-    moco_settings['reg_mode'] = args.moco_transform_type
-    moco_settings['smooth'] = args.moco_smooth
-    moco_settings['avg_wid'] = args.moco_avg_wid
-    moco_settings['n_proc'] = args.cores
+    moco_settings['reg_mode'] = moco_transform_type
+    if args.moco_smooth == 'True':
+        moco_settings['smooth'] = True
+    elif args.moco_smooth == 'False':
+        moco_settings['smooth'] = False
+    else:
+        print('Error: could not interpret moco_smooth, should be True or False, datatype=string')
+    moco_settings['avg_wid'] = int(args.moco_avg_wid)
+    moco_settings['n_proc'] = int(args.cores)
 
     print('moco_settings: ' + repr(moco_settings))
 

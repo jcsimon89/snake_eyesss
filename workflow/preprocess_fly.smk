@@ -8,8 +8,6 @@ from scripts import preprocess
 from scripts import snake_utils
 import os
 import sys
-from pystackreg import StackReg 
-from para_stack_reg import ParaReg
 
 print(os.getcwd())
 current_user = config['user']
@@ -49,16 +47,14 @@ with open(pathlib.Path(fly_folder_to_process_oak, 'fly.json'), 'r') as file:
 # fictrac settings from fly.json (if not present, default values are used)
 fictrac_fps = fly_json.get('fictrac_fps', 100)
 # moco settings from fly.json (if not present, default values are used)
-moco_transform_type = fly_json.get('moco_transform_type', StackReg.RIGID_BODY)
+moco_transform_type = fly_json.get('moco_transform_type', 'StackReg.RIGID_BODY')
 moco_smooth = fly_json.get('moco_smooth', False)
 moco_avg_wid = fly_json.get('moco_avg_wid', 5) # only relevant if smooth is True
-moco_mean_frames = fly_json.get('moco_mean_frames', 40)
 cores = fly_json.get('cores', 40)
 
 # anatomy specific moco settings from fly.json (if not present, default values are used)
 moco_smooth_anat = fly_json.get('moco_smooth_anat', False)
 moco_avg_wid_anat = fly_json.get('moco_avg_wid_anat', 1) # only relevant if smooth is True
-moco_mean_frames_anat = fly_json.get('moco_mean_frames_anat', 40)
 
 # This needs to come from some sort of json file the experimenter
 # creates while running the experiment. Same as genotype.
@@ -722,7 +718,6 @@ rule motion_correction_parallel_slice_func:
         "--moco_transform_type {moco_transform_type} "
         "--moco_smooth {moco_smooth} "
         "--moco_avg_wid {moco_avg_wid} "
-        "--moco_mean_frames {moco_mean_frames} "
         "--cores {cores} "
 
 rule motion_correction_parallel_slice_struct:
@@ -765,10 +760,9 @@ rule motion_correction_parallel_slice_struct:
                                        "--par_output {output.par_output} "
                                        "--moco_temp_folder {moco_temp_folder} "
                                        "--moco_transform_type {moco_transform_type} "
-                                        "--moco_smooth {moco_smooth_anat} " # use anat settings
-                                        "--moco_avg_wid {moco_avg_wid_anat} " # use anat settings
-                                        "--moco_mean_frames {moco_mean_frames_anat} " # use anat settings
-                                        "--cores {cores} "
+                                       "--moco_smooth {moco_smooth_anat} " # use anat settings
+                                       "--moco_avg_wid {moco_avg_wid_anat} " # use anat settings
+                                       "--cores {cores} "
 
 rule moco_mean_brain_rule_func:
     """
