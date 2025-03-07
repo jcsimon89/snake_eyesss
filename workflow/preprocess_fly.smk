@@ -16,7 +16,7 @@ dataset_path = pathlib.Path(settings['dataset_path'])
 ########################################################
 
 #>>>>
-fictrac_fps = 100 # AUTOMATE THIS!!!! ELSE FOR SURE A MISTAKE WILL HAPPEN IN THE FUTURE!!!!
+#fictrac_fps = 100 # AUTOMATE THIS!!!! ELSE FOR SURE A MISTAKE WILL HAPPEN IN THE FUTURE!!!!
 # TODO!!!! Instead of just believing a framerate, use the voltage signal recorded during imaging
 # that defines the position of a given frame!
 #<<<<
@@ -42,6 +42,21 @@ print('Analyze data in ' + repr(fly_folder_to_process_oak.as_posix()))
 # Note: Good place to let user know to check folder and exit!
 with open(pathlib.Path(fly_folder_to_process_oak, 'fly.json'), 'r') as file:
     fly_json = json.load(file)
+
+# fictrac settings from fly.json (if not present, default values are used)
+fictrac_fps = fly_json.get('fictrac_fps', 100)
+# moco settings from fly.json (if not present, default values are used)
+moco_transform_type = fly_json.get('moco_transform_type', StackReg.RIGID_BODY)
+moco_smooth = fly_json.get('moco_smooth', False)
+moco_avg_wid = fly_json.get('moco_avg_wid', 5) # only relevant if smooth is True
+moco_mean_frames = fly_json.get('moco_mean_frames', 40)
+cores = fly_json.get('cores', 40)
+
+# anatomy specific moco settings from fly.json (if not present, default values are used)
+moco_smooth_anat = fly_json.get('moco_smooth_anat', False)
+moco_avg_wid_anat = fly_json.get('moco_avg_wid_anat', 1) # only relevant if smooth is True
+moco_mean_frames_anat = fly_json.get('moco_mean_frames_anat', 40)
+
 # This needs to come from some sort of json file the experimenter
 # creates while running the experiment. Same as genotype.
 FUNCTIONAL_CHANNELS = fly_json['functional_channel']
@@ -701,6 +716,9 @@ rule motion_correction_parallel_slice_func:
         "--moco_path_ch3 {output.moco_path_ch3} "
         "--par_output {output.par_output} "
         "--moco_temp_folder {moco_temp_folder} "
+        "--moco_transform_type {moco_transform_type} "
+        "--moco_mean_frames {moco_mean_frames} "
+        "--cores {cores} "
 
 rule motion_correction_parallel_slice_struct:
     # separate slices, 2d moco, restitch
@@ -741,6 +759,11 @@ rule motion_correction_parallel_slice_struct:
                                        "--moco_path_ch3 {output.moco_path_ch3} "
                                        "--par_output {output.par_output} "
                                        "--moco_temp_folder {moco_temp_folder} "
+                                       "--moco_transform_type {moco_transform_type} "
+                                        "--moco_smooth {moco_smooth_anat} " # use anat settings
+                                        "--moco_avg_wid {moco_avg_wid_anat} " # use anat settings
+                                        "--moco_mean_frames {moco_mean_frames_anat} " # use anat settings
+                                        "--cores {cores} "
 
 rule moco_mean_brain_rule_func:
     """
@@ -797,7 +820,7 @@ rule background_subtract_func:
     threads: snake_utils.threads_per_memory
     resources: mem_mb=snake_utils.mem_mb_times_input
     input:
-        # jcs run background_subtract on ch2 only?
+        # run background_subtract on ch2 only?
         brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_2.nii" if CH2_EXISTS_FUNC_MOCO else [],
     output:
         bg_path_ch2 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
