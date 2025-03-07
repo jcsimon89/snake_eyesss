@@ -8,6 +8,7 @@ from scripts import preprocess
 from scripts import snake_utils
 import os
 import sys
+from pystackreg import StackReg 
 print(os.getcwd())
 current_user = config['user']
 settings = utils.load_user_settings(current_user)
