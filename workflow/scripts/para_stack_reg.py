@@ -27,7 +27,7 @@ def smooth(x, axis=0, wid=5):
     return y
 
 class ParaReg(object):
-    def __init__(self, reg_mode=StackReg.RIGID_BODY, smooth=False, avg_wid=10, n_proc=12):
+    def __init__(self, reg_mode, smooth, avg_wid, n_proc):
         super().__init__()
         self.sr = StackReg(reg_mode)
         self.smooth = smooth
