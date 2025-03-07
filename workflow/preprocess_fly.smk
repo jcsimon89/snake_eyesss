@@ -717,6 +717,8 @@ rule motion_correction_parallel_slice_func:
         "--par_output {output.par_output} "
         "--moco_temp_folder {moco_temp_folder} "
         "--moco_transform_type {moco_transform_type} "
+        "--moco_smooth {moco_smooth} "
+        "--moco_avg_wid {moco_avg_wid} "
         "--moco_mean_frames {moco_mean_frames} "
         "--cores {cores} "
 
