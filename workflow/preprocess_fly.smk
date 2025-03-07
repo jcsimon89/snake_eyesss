@@ -9,6 +9,8 @@ from scripts import snake_utils
 import os
 import sys
 from pystackreg import StackReg 
+from para_stack_reg import ParaReg
+
 print(os.getcwd())
 current_user = config['user']
 settings = utils.load_user_settings(current_user)
