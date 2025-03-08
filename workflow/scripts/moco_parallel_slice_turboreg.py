@@ -117,7 +117,7 @@ def moco_slice(
         else: # data is volume
             fixed_data = np.squeeze(np.asarray(fixed_proxy.dataobj[:,:,slice],dtype='float32')) #source data xyz into xy
             moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-            moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
+        moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
         
         pr = ParaReg(reg_mode=moco_settings['reg_mode'],
                      smooth=moco_settings['smooth'],
