@@ -118,7 +118,7 @@ def moco_slice(
             moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,:],dtype='float32')) #source data xyt
         else: # data is volume
             moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-            moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
+        moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
         
         pr = ParaReg(reg_mode=moco_settings['reg_mode'],
                      smooth=moco_settings['smooth'],
@@ -126,33 +126,47 @@ def moco_slice(
                      n_proc=moco_settings['n_proc'],
                      mean_frames=moco_settings['moco_mean_frames']
                      )
-        pr.register(moving_data)
+        pr.register(img=moving_data)
 
         # apply transform, reorder axes back to xyt
-        moving_data = pr.transform(moving_data)
-        moving_data = np.moveaxis(moving_data, 0, -1)#rearrange moving axes back to x,y,t
-
-        moving_data_final[:,:,slice,:] = moving_data
         
+        if n_slices==1: # data is single plane
+            moving_data = pr.transform(moving_data)
+            moving_data = np.moveaxis(moving_data, 0, -1)#rearrange moving axes back to x,y,t
+            moving_data_final[:,:,:] = moving_data
 
-        if functional_path_one is not None:
-            functional_data_one = np.squeeze(np.asarray(functional_one_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-            functional_data_one = np.moveaxis(functional_data_one, -1, 0) #rearrange moving axes to t,x,y
+            if functional_path_one is not None:
+                functional_data_one = np.asarray(functional_one_proxy.dataobj[:,:,:],dtype='float32') #xyt
+                functional_data_one = np.moveaxis(functional_data_one, -1, 0) #rearrange moving axes to t,x,y
+                functional_data_one = pr.transform(functional_data_one)
+                functional_data_one = np.moveaxis(functional_data_one, 0, -1) #rearrange moving axes back to x,y,t
+                functional_data_one_final[:,:,:] = functional_data_one
 
-            # apply transform, reorder axes back to xyt
-            functional_data_one = pr.transform(functional_data_one)
-            functional_data_one = np.moveaxis(functional_data_one, 0, -1) #rearrange moving axes back to x,y,t
-            functional_data_one_final[:,:,slice,:] = functional_data_one
+                if functional_path_two is not None:
+                    functional_data_two = np.asarray(functional_two_proxy.dataobj[:,:,:],dtype='float32') #xyt
+                    functional_data_two = np.moveaxis(functional_data_two, -1, 0) #rearrange moving axes to t,x,y
+                    functional_data_two = pr.transform(functional_data_two)
+                    functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
+                    functional_data_two_final[:,:,:] = functional_data_two
 
-            if functional_path_two is not None:
-                functional_data_two = np.squeeze(np.asarray(functional_two_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-                functional_data_two = np.moveaxis(functional_data_two, -1, 0) #rearrange moving axes to t,x,y
+        else: # data is volume
+            moving_data = pr.transform(moving_data)
+            moving_data = np.moveaxis(moving_data, 0, -1)#rearrange moving axes back to x,y,t
+            moving_data_final[:,:,slice,:] = moving_data
+ 
+            if functional_path_one is not None:
+                functional_data_one = np.squeeze(np.asarray(functional_one_proxy.dataobj[:,:,slice,:],dtype='float32')) #xyt
+                functional_data_one = np.moveaxis(functional_data_one, -1, 0) #rearrange moving axes to t,x,y
+                functional_data_one = pr.transform(functional_data_one)
+                functional_data_one = np.moveaxis(functional_data_one, 0, -1) #rearrange moving axes back to x,y,t
+                functional_data_one_final[:,:,slice,:] = functional_data_one
 
-                # apply transform, reorder axes back to xyt
-                functional_data_two = pr.transform(functional_data_two)
-                functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
-                functional_data_two_final[:,:,slice,:] = functional_data_two
-
+                if functional_path_two is not None:
+                    functional_data_two = np.squeeze(np.asarray(functional_two_proxy.dataobj[:,:,slice,:],dtype='float32')) #xyt
+                    functional_data_two = np.moveaxis(functional_data_two, -1, 0) #rearrange moving axes to t,x,y
+                    functional_data_two = pr.transform(functional_data_two)
+                    functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
+                    functional_data_two_final[:,:,slice,:] = functional_data_two
         # save transform params for slice to tmats_final
         for t_ind in range(n_timepoints):
             tmats_final[:,:,slice,t_ind] = np.asarray(pr._tmats[t_ind],dtype='float32')
