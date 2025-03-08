@@ -14,7 +14,7 @@ import itertools
 import argparse
 import sys
 from pystackreg import StackReg 
-from para_stack_reg import ParaReg
+#from para_stack_reg import ParaReg
 
 
 parent_path = str(pathlib.Path(pathlib.Path(__file__).parent.absolute()).parent.absolute())
@@ -31,7 +31,7 @@ def reg_slice(
     fixed_path,
     functional_channel_paths,
     par_output,
-    moco_settings
+    reg_settings
 ):
     """
     Loop doing the registration for each slice.
@@ -76,6 +76,8 @@ def reg_slice(
 
     moving_data_final = np.empty(moving_proxy.shape)
 
+    n_timepoints = moving_proxy.shape[-1] # source xy(z)t
+
     tmats_final = np.empty([3,3,n_slices]) # for rigid, 3x3 tmat for each slice and timepoint
     # for a rigid transformation, tmat is a 3x3 matrix [[cos(r) −sin(r) tx],[sin(r) cos(r) ty],[0 0 1]] where r is angle, t is translation
     
@@ -89,68 +91,71 @@ def reg_slice(
             fixed_data_mean = np.mean(np.asarray(fixed_proxy.dataobj[:,:,:],dtype='float32'),axis=-1) #xy, source data xyt
         else: # data is volume
             moving_data_mean = np.mean(np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')),axis=-1) #xy, source data xyzt
-            fixed_data_mean = np.mean(np.squeeze(np.asarray(fixed_proxy[:,:,slice,:].dataobj,dtype='float32')),axis=-1) #xy, source data xyzt
-        moving_data_mean = np.expand_dims(moving_data_mean, axis=0) # add dummy time axis=0, txy
-        fixed_data_mean = np.expand_dims(fixed_data_mean, axis=0) # add dummy time axis=0, txy
-
+            fixed_data_mean = np.mean(np.squeeze(np.asarray(fixed_proxy.dataobj[:,:,slice,:],dtype='float32')),axis=-1) #xy, source data xyzt
+        #moving_data_mean = np.expand_dims(moving_data_mean, axis=0) # add dummy time axis=0, txy
+        #fixed_data_mean = np.expand_dims(fixed_data_mean, axis=0) # add dummy time axis=0, txy
+        print('moving_data_mean shape: ' + repr(moving_data_mean.shape))
+        print('fixed_data_mean shape: ' + repr(fixed_data_mean.shape))
         
-        pr = ParaReg(reg_mode=moco_settings['reg_mode'],
-                     smooth=moco_settings['smooth'],
-                     avg_wid=moco_settings['avg_wid'],
-                     n_proc=moco_settings['n_proc'],
-                     )
-        pr.register(img=moving_data_mean, ref=fixed_data_mean)
-
+        # pr = ParaReg(reg_mode=reg_settings['reg_mode'],
+        #              smooth=reg_settings['smooth'],
+        #              avg_wid=reg_settings['avg_wid'],
+        #              n_proc=reg_settings['n_proc'],
+        #              )
+        sr=StackReg(reg_settings['reg_mode'])
+        tmat=sr.register(ref=fixed_data_mean, mov=moving_data_mean)
+        #tmats=sr.register_stack(reference=fixed_data_mean, img=moving_data_mean)
         # apply transforms
         
         if n_slices==1: # data is single plane
             moving_data = np.asarray(moving_proxy.dataobj[:,:,:],dtype='float32') #xyt
             moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
-            moving_data = pr.transform(moving_data)
+            moving_data = sr.transform_stack(img=moving_data,tmats=np.repeat(np.expand_dims(tmat,axis=0), n_timepoints, axis=0))
             moving_data = np.moveaxis(moving_data, 0, -1)#rearrange moving axes back to x,y,t
             moving_data_final[:,:,:] = moving_data
 
             if functional_path_one is not None:
                 functional_data_one = np.asarray(functional_one_proxy.dataobj[:,:,:],dtype='float32') #xyt
                 functional_data_one = np.moveaxis(functional_data_one, -1, 0) #rearrange moving axes to t,x,y
-                functional_data_one = pr.transform(functional_data_one)
+                functional_data_one = sr.transform_stack(img=functional_data_one,tmats=np.repeat(np.expand_dims(tmat,axis=0), n_timepoints, axis=0))
                 functional_data_one = np.moveaxis(functional_data_one, 0, -1) #rearrange moving axes back to x,y,t
                 functional_data_one_final[:,:,:] = functional_data_one
 
                 if functional_path_two is not None:
                     functional_data_two = np.asarray(functional_two_proxy.dataobj[:,:,:],dtype='float32') #xyt
                     functional_data_two = np.moveaxis(functional_data_two, -1, 0) #rearrange moving axes to t,x,y
-                    functional_data_two = pr.transform(functional_data_two)
+                    functional_data_two = sr.transform_stack(img=functional_data_two,tmats=np.repeat(np.expand_dims(tmat,axis=0), n_timepoints, axis=0))
                     functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
                     functional_data_two_final[:,:,:] = functional_data_two
 
         else: # data is volume
             moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #xyt
             moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
-            moving_data = pr.transform(moving_data)
+            #moving_data = sr.transform(mov=moving_data,tmat=tmat)
+            moving_data = sr.transform_stack(img=moving_data,tmats=np.repeat(np.expand_dims(tmat,axis=0), n_timepoints, axis=0))
             moving_data = np.moveaxis(moving_data, 0, -1)#rearrange moving axes back to x,y,t
             moving_data_final[:,:,slice,:] = moving_data
  
             if functional_path_one is not None:
                 functional_data_one = np.squeeze(np.asarray(functional_one_proxy.dataobj[:,:,slice,:],dtype='float32')) #xyt
                 functional_data_one = np.moveaxis(functional_data_one, -1, 0) #rearrange moving axes to t,x,y
-                functional_data_one = pr.transform(functional_data_one)
+                functional_data_one = sr.transform_stack(img=functional_data_one,tmats=np.repeat(np.expand_dims(tmat,axis=0), n_timepoints, axis=0))
                 functional_data_one = np.moveaxis(functional_data_one, 0, -1) #rearrange moving axes back to x,y,t
                 functional_data_one_final[:,:,slice,:] = functional_data_one
 
                 if functional_path_two is not None:
                     functional_data_two = np.squeeze(np.asarray(functional_two_proxy.dataobj[:,:,slice,:],dtype='float32')) #xyt
                     functional_data_two = np.moveaxis(functional_data_two, -1, 0) #rearrange moving axes to t,x,y
-                    functional_data_two = pr.transform(functional_data_two)
+                    functional_data_two = sr.transform_stack(img=functional_data_two,tmats=np.repeat(np.expand_dims(tmat,axis=0), n_timepoints, axis=0))
                     functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
                     functional_data_two_final[:,:,slice,:] = functional_data_two
         
         
         # save transform params for slice to tmats_final
-        tmats_final[:,:,slice] = np.asarray(pr._tmats,dtype='float32')
+        tmats_final[:,:,slice] = np.asarray(tmat,dtype='float32')
             # for a rigid transformation, tmat is a 3x3 matrix [[cos(r) −sin(r) tx],[sin(r) cos(r) ty],[0 0 1]] where r is angle, t is translation
 
-        print('Motion correction for ' + moving_path.as_posix()
+        print('series registration for ' + moving_path.as_posix()
             + 'at slice ' + str(slice) + ' took : '
             + repr(round(time.time() - t_function_start, 1))
             + 's\n')
@@ -184,15 +189,11 @@ if __name__ == '__main__':
     parser.add_argument("--STRUCTURAL_CHANNEL", nargs="?", help="variable with string containing the structural channel")
     parser.add_argument("--FUNCTIONAL_CHANNELS", nargs="?", help="list with strings containing the functional channel")
 
-    parser.add_argument("--fixed_moco_mean_path", nargs="?", help="Path to fixed moco mean file for series registration")
+    parser.add_argument("--fixed_moco_path", nargs="?", help="Path to fixed moco mean file for series registration")
 
     parser.add_argument("--moco_path_ch1", nargs="?", help="Path to ch1 moco corrected file, if Ch1 exists")
     parser.add_argument("--moco_path_ch2", nargs="?", help="Path to ch2 moco corrected file, if Ch2 exists")
     parser.add_argument("--moco_path_ch3", nargs="?", help="Path to ch3 moco corrected file, if Ch3 exists")
-
-    parser.add_argument("--moco_mean_path_ch1", nargs="?", help="Path to ch1 moco corrected mean file, if Ch1 exists")
-    parser.add_argument("--moco_mean_path_ch2", nargs="?", help="Path to ch2 moco corrected mean file, if Ch2 exists")
-    parser.add_argument("--moco_mean_path_ch3", nargs="?", help="Path to ch3 moco corrected mean file, if Ch3 exists")
 
     parser.add_argument("--reg_path_ch1", nargs="?", help="Path to registered ch1 moco corrected file, if Ch1 exists")
     parser.add_argument("--reg_path_ch2", nargs="?", help="Path to registered ch2 moco corrected file, if Ch2 exists")
@@ -200,15 +201,15 @@ if __name__ == '__main__':
 
     parser.add_argument("--reg_par_output", nargs="?", help="Path to registration parameter output")
 
-    # moco settings
-    parser.add_argument("--moco_transform_type", nargs="?", help="Type of transformation to use for registration") # default is rigid
+    # reg settings
+    parser.add_argument("--reg_transform_type", nargs="?", help="Type of transformation to use for registration") # default is rigid
 
     args = parser.parse_args()
 
     print('args: ' + repr(args))
 
     reg_par_output = args.reg_par_output
-    fixed_moco_mean_path = args.fixed_moco_mean_path
+    fixed_moco_path = args.fixed_moco_path
 
     #####################
     ### SETUP LOGGING ###
@@ -287,24 +288,19 @@ if __name__ == '__main__':
         n_slices = 1
 
 
-    # moco settings
+    # reg settings
         # unpack transform type from string
-    if args.moco_transform_type == 'StackReg.RIGID_BODY':
-        moco_transform_type = StackReg.RIGID_BODY
-    moco_settings = {}
-    moco_settings['reg_mode'] = moco_transform_type
-    if args.moco_smooth == 'True':
-        moco_settings['smooth'] = True
-    elif args.moco_smooth == 'False':
-        moco_settings['smooth'] = False
-    else:
-        print('Error: could not interpret moco_smooth, should be True or False, datatype=string')
-    moco_settings['avg_wid'] = int(args.moco_avg_wid)
-    moco_settings['n_proc'] = int(args.cores)
+    if args.reg_transform_type == 'StackReg.RIGID_BODY':
+        reg_transform_type = StackReg.RIGID_BODY
+    reg_settings = {}
+    reg_settings['reg_mode'] = reg_transform_type
+    reg_settings['smooth'] = False
+    reg_settings['avg_wid'] = 1
+    reg_settings['n_proc'] = 1
 
-    print('moco_settings: ' + repr(moco_settings))
+    print('reg_settings: ' + repr(reg_settings))
 
-    print('Will perform motion correction on a total of ' + repr(n_timepoints) + ' timepoints and ' + repr(n_slices) + ' slice(s).')
+    print('Will perform registration on a total of ' + repr(n_timepoints) + ' timepoints and ' + repr(n_slices) + ' slice(s).')
 
     print('Starting series registration')
     time_start = time.time()
@@ -312,10 +308,10 @@ if __name__ == '__main__':
     # DO registration
     reg_slice(
              moving_path=moving_path,
-             fixed_path=args.fixed_moco_mean_path,
+             fixed_path=fixed_moco_path,
              functional_channel_paths=functional_channel_paths,
              par_output = reg_par_output,
-             moco_settings = moco_settings,
+             reg_settings = reg_settings,
              )
     
     print('Took: ' + repr(round(time.time() - time_start,1)) + 's\n to register series')
