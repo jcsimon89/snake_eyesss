@@ -168,6 +168,8 @@ if __name__ == '__main__':
     parser.add_argument("--STRUCTURAL_CHANNEL", nargs="?", help="variable with string containing the structural channel")
     parser.add_argument("--FUNCTIONAL_CHANNELS", nargs="?", help="list with strings containing the functional channel")
 
+    parser.add_argument("--fixed_moco_mean_path", nargs="?", help="Path to fixed moco mean file for series registration")
+
     parser.add_argument("--moco_path_ch1", nargs="?", help="Path to ch1 moco corrected file, if Ch1 exists")
     parser.add_argument("--moco_path_ch2", nargs="?", help="Path to ch2 moco corrected file, if Ch2 exists")
     parser.add_argument("--moco_path_ch3", nargs="?", help="Path to ch3 moco corrected file, if Ch3 exists")
@@ -256,11 +258,6 @@ if __name__ == '__main__':
     print("moving_path" + repr(moving_path))
     print("moving_output_path" + repr(moving_output_path))
 
-    ########################################
-    ### Multiprocessing code starts here ###
-    ########################################
-
-    #cores = 40 (set in moco settings in fly.json now)
 
     # Put moving anatomy image into a proxy for nibabel
     moving_proxy = nib.load(moving_path)

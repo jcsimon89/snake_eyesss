@@ -30,7 +30,7 @@ meanbrain_n_frames =  None
 
 # On sherlock this is usually python3 but on a personal computer can be python
 shell_python_command = str(settings.get('shell_python_command', "python3"))
-print("shell_python_command" + shell_python_command)
+print("shell_python_command " + shell_python_command)
 moco_temp_folder = str(settings.get('moco_temp_folder', "/scratch/groups/trc"))
 
 # Define path to imports to find fly.json!
@@ -125,36 +125,6 @@ else:
 #######
 # Data path on OAK
 #######
-'''
-# Maybe not used anymore. Might be useful to create paths to SCRATCH, though...
-def create_file_paths(path_to_fly_folder, imaging_file_paths, filename, func_only=False):
-    """
-    Creates lists of path that can be feed as input/output to snakemake rules taking into account that
-    different fly_00X folder might have different channels!
-    :param path_to_fly_folder: a folder pointing to a fly, i.e. /Volumes/groups/trc/data/David/Bruker/preprocessed/fly_001
-    :param list_of_paths: a list of path created, usually created from fly_dirs_dict (e.g. fly_004_dirs.json)
-    :param filename: filename to append at the end. Can be nothing (i.e. for fictrac data).
-    :param func_only: Sometimes we need only paths from the functional channel, for example for z-scoring
-    :return: list of filepaths
-    """
-    list_of_filepaths = []
-    for current_path in imaging_file_paths:
-        if func_only:
-            if 'func' in current_path:
-                if CH1_EXISTS:
-                    list_of_filepaths.append(pathlib.Path(path_to_fly_folder, current_path, 'channel_1' + filename))
-                if CH2_EXISTS:
-                    list_of_filepaths.append(pathlib.Path(path_to_fly_folder, current_path, 'channel_2' + filename))
-                if CH3_EXISTS:
-                    list_of_filepaths.append(pathlib.Path(path_to_fly_folder, current_path, 'channel_3' + filename))
-        else:
-            if CH1_EXISTS:
-                list_of_filepaths.append(pathlib.Path(path_to_fly_folder,current_path,'channel_1' + filename))
-            if CH2_EXISTS:
-                list_of_filepaths.append(pathlib.Path(path_to_fly_folder,current_path,'channel_2' + filename))
-            if CH3_EXISTS:
-                list_of_filepaths.append(pathlib.Path(path_to_fly_folder,current_path,'channel_3' + filename))
-    return(list_of_filepaths)'''
 
 FICTRAC_PATHS = []
 if fictrac_exists:
@@ -174,7 +144,7 @@ if fictrac_exists:
 list_of_paths = []
 for current_path in imaging_file_paths:
     list_of_paths.append(current_path.split('/imaging')[0])
-# This is a list of all imaging paths so something like this
+# This is a list of all imaging paths so something like this 
 # ['anat0', 'func0', 'func1']
 print('list_of_paths ' +repr(list_of_paths) )
 
@@ -183,10 +153,13 @@ for current_path in imaging_file_paths:
     if 'func' in current_path:
         list_of_paths_func.append(current_path.split('/imaging')[0])
 
-print("list_of_paths_func" + repr(list_of_paths_func))
+print("list_of_paths_func " + repr(list_of_paths_func))
 
 # list of func paths for registration to first series (same as list_of_paths_func but without first series)
 list_of_paths_func_reg = natsort.natsorted(list_of_paths_func) [1:]
+fixed_path_func_reg = natsort.natsorted(list_of_paths_func)[0]
+print("fixed_path_func_reg " + repr(fixed_path_func_reg))
+print("list_of_paths_func_reg " + repr(list_of_paths_func_reg))
 
 list_of_paths_struct = []
 for current_path in imaging_file_paths:
@@ -278,96 +251,6 @@ else:
     CH3_EXISTS_MISC = False
 
 print("list_of_misc_channels" + repr(list_of_misc_channels))
-
-
-# Behaviors to correlate with neural activity
-corr_behaviors = ['dRotLabZneg', 'dRotLabZpos', 'dRotLabY']
-# This would be a list like this ['1', '2']
-
-atlas_path = pathlib.Path("brain_atlases/jfrc_atlas_from_brainsss.nii") #luke.nii"
-"""
-struct_channel=[]
-if 'channel_1' in STRUCTURAL_CHANNEL:
-    struct_channel.append('channel_1')
-elif 'channel_2' in STRUCTURAL_CHANNEL:
-    struct_channel.append('channel_2')
-elif 'channel_3' in STRUCTURAL_CHANNEL:
-    struct_channel.append('channel_3')
-if len(struct_channel)>1:
-    print('!!!!WARNING!!!')
-    print('The following channels are defined as anatomy channels: ')
-    print(struct_channel)
-    print('There should only be a single anatomy channel for the pipeline to work as expected.')
-
-"""
-####
-# probably not relevant - I think this is what bifrost does (better)
-##
-# list of paths for func2anat
-#imaging_paths_func2anat = []
-#anat_path_func2anat = None
-#for current_path in imaging_file_paths:
-    #if 'func' in current_path:
-    #    imaging_paths_func2anat.append(current_path.split('/imaging')[0])
-    # the folder name of the anatomical channel
-    #elif 'anat' in current_path:
-    #    if anat_path_func2anat is None:
-    #        anat_path_func2anat = current_path.split('/imaging')[0]
-    #    else:
-    #        print('!!!! WARNING: More than one folder with "anat"-string in fly to analyze. ')
-    #        print('!!!! func to anat function will likely give unexpected results! ')
-# the anatomical channel for func2anat
-#if 'channel_1' in ANATOMY_CHANNEL:
-#    file_path_func2anat_fixed = ['channel_1']
-#elif 'channel_2' in ANATOMY_CHANNEL:
-#    file_path_func2anat_fixed = ['channel_2']
-#elif 'channel_3' in ANATOMY_CHANNEL:
-#    file_path_func2anat_fixed = ['channel_3']
-
-##
-# list of paths for anat2atlas
-
-#imaging_paths_anat2atlas =[]
-#for current_path in imaging_file_paths:
-#    if 'anat' in current_path:
-#        # here it's ok to have more than one anatomy folder! However, script will break before...
-#        # but at least this part doesn't have to break!
-#        imaging_paths_anat2atlas.append(current_path.split('/imaging')[0])
-
-# the anatomical channel for func2anat
-#file_path_anat2atlas_moving = []
-#if 'channel_1' in ANATOMY_CHANNEL:
-#    file_path_anat2atlas_moving.append('channel_1')
-#elif 'channel_2' in ANATOMY_CHANNEL:
-#    file_path_anat2atlas_moving.append('channel_2')
-#elif 'channel_3' in ANATOMY_CHANNEL:
-#    file_path_anat2atlas_moving.append('channel_3')
-
-"""
-
-
-"""
-
-"""
-
-        # Below might be Bifrost territory - ignore for now.
-        ###
-        # func2anat
-        ###
-        expand(str(fly_folder_to_process_oak)
-               + "/{func2anat_paths}/warp/{func2anat_moving}_func-to-{func2anat_fixed}_anat.nii",
-               func2anat_paths=list_of_paths_func,
-               func2anat_moving=struct_channel,  # This is the channel which is designated as STRUCTURAL_CHANNEL
-               func2anat_fixed=struct_channel),
-
-        ##
-        # anat2atlas
-        ##
-        expand(str(fly_folder_to_process_oak)
-               + "/{anat2atlas_paths}/warp/{anat2atlas_moving}_-to-atlas.nii",
-               anat2atlas_paths=list_of_paths_anat,
-               anat2atlas_moving=struct_channel),
-"""
 
 
 rule all:
@@ -528,14 +411,15 @@ rule all:
                moco_imaging_paths_func_reg=list_of_paths_func_reg),
 
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func}/moco/channel_1_moco_func_reg.nii" if CH1_EXISTS_FUNC_MOCO else [],
-            moco_imaging_paths_func=list_of_paths_func),
+               + "/{moco_imaging_paths_func_reg}/moco/channel_1_moco_func_reg.nii" if CH1_EXISTS_FUNC_MOCO else [],
+            moco_imaging_paths_func_reg=list_of_paths_func_reg),
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func_reg.nii" if CH2_EXISTS_FUNC_MOCO else [],
-            moco_imaging_paths_func=list_of_paths_func),
+               + "/{moco_imaging_paths_func_reg}/moco/channel_2_moco_bg_func_reg.nii" if CH2_EXISTS_FUNC_MOCO else [],
+            moco_imaging_paths_func_reg=list_of_paths_func_reg),
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func}/moco/channel_3_moco_func_reg.nii" if CH3_EXISTS_FUNC_MOCO else [],
-            moco_imaging_paths_func=list_of_paths_func),
+               + "/{moco_imaging_paths_func_reg}/moco/channel_3_moco_func_reg.nii" if CH3_EXISTS_FUNC_MOCO else [],
+            moco_imaging_paths_func_reg=list_of_paths_func_reg),
+
 rule fly_builder_rule:
     threads:
         1
@@ -849,17 +733,24 @@ rule register_series:
     threads: snake_utils.threads_per_memory
     resources: mem_mb=snake_utils.mem_mb_times_input
     input:
-        moco_mean_path_ch1=str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_1_moco_mean_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        moco_mean_path_ch2=str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_2_moco_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        moco_mean_path_ch3=str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_3_moco_mean_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
-        moco_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
-        moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
+        # fixed mean brain to register to (first series), structural channel
+        fixed_moco_mean_path=expand(str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{meanbr_moco_ch_struct}_moco_bg_mean_func.nii" if STRUCTURAL_CHANNEL=='channel_2'
+            else str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{meanbr_moco_ch_struct}_moco_mean_func.nii",
+            fixed_moco_imaging_path_func=fixed_path_func_reg,
+            meanbr_moco_ch_struct=list_of_channels_struct),
+        # moving mean brains (all series but first)
+        moco_mean_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_1_moco_mean_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
+        moco_mean_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_2_moco_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        moco_mean_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_3_moco_mean_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
+        # moving brains to apply the registration to (all series but first)
+        moco_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
+        moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
         
     output:
-        reg_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func_reg.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        reg_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func_reg.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        reg_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func_reg.nii" if CH3_EXISTS_FUNC_MOCO else [],
+        reg_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_1_moco_func_reg.nii" if CH1_EXISTS_FUNC_MOCO else [],
+        reg_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_2_moco_bg_func_reg.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        reg_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_3_moco_func_reg.nii" if CH3_EXISTS_FUNC_MOCO else [],
         reg_par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/tmats_func_reg.npy",
     
     shell: shell_python_command + " " + scripts_path + "/scripts/register_series.py "
@@ -867,9 +758,10 @@ rule register_series:
         "--dataset_path {dataset_path} "
         "--STRUCTURAL_CHANNEL {STRUCTURAL_CHANNEL} "
         "--FUNCTIONAL_CHANNELS {FUNCTIONAL_CHANNELS} "
-        "--moco_path_ch1 {output.moco_path_ch1} "
-        "--moco_path_ch2 {output.moco_path_ch2} "
-        "--moco_path_ch3 {output.moco_path_ch3} "
+        "--fixed_moco_mean_path {input.fixed_moco_mean_path} "
+        "--moco_path_ch1 {input.moco_path_ch1} "
+        "--moco_path_ch2 {input.moco_path_ch2} "
+        "--moco_path_ch3 {input.moco_path_ch3} "
         "--moco_mean_path_ch1 {input.moco_mean_path_ch1} "
         "--moco_mean_path_ch2 {input.moco_mean_path_ch2} "
         "--moco_mean_path_ch3 {input.moco_mean_path_ch3} "
@@ -878,5 +770,3 @@ rule register_series:
         "--reg_path_ch3 {output.reg_path_ch3} "
         "--reg_par_output {output.reg_par_output} "        
         "--moco_transform_type {moco_transform_type} "
-
-
