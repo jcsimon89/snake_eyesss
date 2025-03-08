@@ -46,12 +46,13 @@ with open(pathlib.Path(fly_folder_to_process_oak, 'fly.json'), 'r') as file:
 
 # fictrac settings from fly.json (if not present, default values are used)
 fictrac_fps = fly_json.get('fictrac_fps', 100)
-# moco settings from fly.json (if not present, default values are used)
+# reg/moco settings from fly.json (if not present, default values are used)
 moco_transform_type = fly_json.get('moco_transform_type', 'StackReg.RIGID_BODY')
 moco_smooth = fly_json.get('moco_smooth', False)
 moco_avg_wid = fly_json.get('moco_avg_wid', 5) # only relevant if smooth is True
 moco_mean_frames = fly_json.get('moco_mean_frames', 40)
 cores = fly_json.get('cores', 40)
+reg_transform_type = fly_json.get('reg_transform_type', 'StackReg.RIGID_BODY')
 
 # anatomy specific moco settings from fly.json (if not present, default values are used)
 moco_smooth_anat = fly_json.get('moco_smooth_anat', False)
@@ -734,7 +735,7 @@ rule register_series:
     resources: mem_mb=snake_utils.mem_mb_times_input
     input:
         # fixed mean brain to register to (first series), structural channel
-        fixed_moco_path=expand(str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{meanbr_moco_ch_struct}_moco_bg_func.nii" if STRUCTURAL_CHANNEL=='channel_2'
+        fixed_moco_path=expand(str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{moco_ch_struct}_moco_bg_func.nii" if STRUCTURAL_CHANNEL=='channel_2'
             else str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{moco_ch_struct}_moco_func.nii",
             fixed_moco_imaging_path_func=fixed_path_func_reg,
             moco_ch_struct=list_of_channels_struct),
@@ -762,4 +763,4 @@ rule register_series:
         "--reg_path_ch2 {output.reg_path_ch2} "
         "--reg_path_ch3 {output.reg_path_ch3} "
         "--reg_par_output {output.reg_par_output} "        
-        "--moco_transform_type {moco_transform_type} "
+        "--reg_transform_type {reg_transform_type} "
