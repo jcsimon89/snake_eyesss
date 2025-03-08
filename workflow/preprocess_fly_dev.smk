@@ -185,6 +185,9 @@ for current_path in imaging_file_paths:
 
 print("list_of_paths_func" + repr(list_of_paths_func))
 
+# list of func paths for registration to first series (same as list_of_paths_func but without first series)
+list_of_paths_func_reg = natsort.natsorted(list_of_paths_func) [1:]
+
 list_of_paths_struct = []
 for current_path in imaging_file_paths:
     if 'anat' in current_path:
@@ -517,6 +520,22 @@ rule all:
         expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
                 moco_imaging_paths_func=list_of_paths_func),
     
+        ###
+        # register_series
+        ###
+        expand(str(fly_folder_to_process_oak)
+               + "/{moco_imaging_paths_func_reg}/moco/tmats_func_reg.npy",
+               moco_imaging_paths_func_reg=list_of_paths_func_reg),
+
+        expand(str(fly_folder_to_process_oak)
+               + "/{moco_imaging_paths_func}/moco/channel_1_moco_func_reg.nii" if CH1_EXISTS_FUNC_MOCO else [],
+            moco_imaging_paths_func=list_of_paths_func),
+        expand(str(fly_folder_to_process_oak)
+               + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func_reg.nii" if CH2_EXISTS_FUNC_MOCO else [],
+            moco_imaging_paths_func=list_of_paths_func),
+        expand(str(fly_folder_to_process_oak)
+               + "/{moco_imaging_paths_func}/moco/channel_3_moco_func_reg.nii" if CH3_EXISTS_FUNC_MOCO else [],
+            moco_imaging_paths_func=list_of_paths_func),
 rule fly_builder_rule:
     threads:
         1
@@ -693,7 +712,7 @@ rule motion_correction_parallel_slice_func:
         brain_paths_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_3.nii" if CH3_EXISTS_FUNC_MOCO else [],
 
     output:
-        moco_path_ch1 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
+        moco_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
         moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
         moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
         par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/tmats_func.npy",
@@ -824,5 +843,40 @@ rule background_subtract_func:
         "--brain_paths_ch2 {input.brain_paths_ch2} "
         "--FUNCTIONAL_CHANNELS {FUNCTIONAL_CHANNELS} "
         "--bg_path_ch2 {output.bg_path_ch2} "
+
+rule register_series:
+    # register each functional series to the first series so that rois are aligned and apply to all series (correct for drift)
+    threads: snake_utils.threads_per_memory
+    resources: mem_mb=snake_utils.mem_mb_times_input
+    input:
+        moco_mean_path_ch1=str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_1_moco_mean_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
+        moco_mean_path_ch2=str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_2_moco_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        moco_mean_path_ch3=str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_3_moco_mean_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
+        moco_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
+        moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
+        
+    output:
+        reg_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func_reg.nii" if CH1_EXISTS_FUNC_MOCO else [],
+        reg_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func_reg.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        reg_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func_reg.nii" if CH3_EXISTS_FUNC_MOCO else [],
+        reg_par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/tmats_func_reg.npy",
+    
+    shell: shell_python_command + " " + scripts_path + "/scripts/register_series.py "
+        "--fly_directory {fly_folder_to_process_oak} "
+        "--dataset_path {dataset_path} "
+        "--STRUCTURAL_CHANNEL {STRUCTURAL_CHANNEL} "
+        "--FUNCTIONAL_CHANNELS {FUNCTIONAL_CHANNELS} "
+        "--moco_path_ch1 {output.moco_path_ch1} "
+        "--moco_path_ch2 {output.moco_path_ch2} "
+        "--moco_path_ch3 {output.moco_path_ch3} "
+        "--moco_mean_path_ch1 {input.moco_mean_path_ch1} "
+        "--moco_mean_path_ch2 {input.moco_mean_path_ch2} "
+        "--moco_mean_path_ch3 {input.moco_mean_path_ch3} "
+        "--reg_path_ch1 {output.reg_path_ch1} "
+        "--reg_path_ch2 {output.reg_path_ch2} "
+        "--reg_path_ch3 {output.reg_path_ch3} "
+        "--reg_par_output {output.reg_par_output} "        
+        "--moco_transform_type {moco_transform_type} "
 
 
