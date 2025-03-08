@@ -28,15 +28,16 @@ WIDTH = 120 # Todo: make a global parameter class somewhere to keep track of thi
 
 def reg_slice(
     moving_path,
+    fixed_path,
     functional_channel_paths,
     par_output,
     moco_settings
 ):
     """
-    Loop doing the motion correction for each slice.
+    Loop doing the registration for each slice.
     This is the function that is doing the heavy lifting of the multiprocessing.
     Saves the transformed files as nii (float32).
-    Saves transformation matrices as tmats_struct or func.npy (float32)
+    Saves transformation matrices as tmats_func_reg.npy (float32)
     """
     # Unpack functional paths
     if functional_channel_paths is None:
@@ -59,9 +60,9 @@ def reg_slice(
         functional_path_one = None
         functional_path_two = None
 
-    # Load moving proxy in this process
-    moving_proxy = nib.load(moving_path) #xyzt
-    n_timepoints = moving_proxy.shape[-1]
+    # Load moving proxy
+    moving_proxy = nib.load(moving_path) #xy(z)t
+
     # Determine number of slices
     if len(moving_proxy.shape)==4: # xyzt
         n_slices = moving_proxy.shape[2]
@@ -69,56 +70,84 @@ def reg_slice(
         n_slices = 1
     else:
         print('Error: Could not determine number of slices in moving data.')
-    
+
+    # Load fixed proxy
+    fixed_proxy = nib.load(fixed_path) #xy(z)t
+
     moving_data_final = np.empty(moving_proxy.shape)
 
-    tmats_final = np.empty([3,3,n_slices,n_timepoints]) # for rigid, 3x3 tmat for each slice and timepoint
+    tmats_final = np.empty([3,3,n_slices]) # for rigid, 3x3 tmat for each slice and timepoint
     # for a rigid transformation, tmat is a 3x3 matrix [[cos(r) −sin(r) tx],[sin(r) cos(r) ty],[0 0 1]] where r is angle, t is translation
+    
+    # register moving mean data to fixed mean data
+
     for slice in range(n_slices):
         # Keeping track of time
         t_function_start = time.time()
         if n_slices==1: # data is single plane
-            moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,:],dtype='float32')) #source data xyt
+            moving_data_mean = np.mean(np.asarray(moving_proxy.dataobj[:,:,:],dtype='float32'),axis=-1) #xy, source data xyt
+            fixed_data_mean = np.mean(np.asarray(fixed_proxy.dataobj[:,:,:],dtype='float32'),axis=-1) #xy, source data xyt
         else: # data is volume
-            moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-            moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
+            moving_data_mean = np.mean(np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')),axis=-1) #xy, source data xyzt
+            fixed_data_mean = np.mean(np.squeeze(np.asarray(fixed_proxy[:,:,slice,:].dataobj,dtype='float32')),axis=-1) #xy, source data xyzt
+        moving_data_mean = np.expand_dims(moving_data_mean, axis=0) # add dummy time axis=0, txy
+        fixed_data_mean = np.expand_dims(fixed_data_mean, axis=0) # add dummy time axis=0, txy
+
         
         pr = ParaReg(reg_mode=moco_settings['reg_mode'],
                      smooth=moco_settings['smooth'],
                      avg_wid=moco_settings['avg_wid'],
                      n_proc=moco_settings['n_proc'],
-                     mean_frames=moco_settings['moco_mean_frames']
                      )
-        pr.register(moving_data)
+        pr.register(img=moving_data_mean, ref=fixed_data_mean)
 
-        # apply transform, reorder axes back to xyt
-        moving_data = pr.transform(moving_data)
-        moving_data = np.moveaxis(moving_data, 0, -1)#rearrange moving axes back to x,y,t
-
-        moving_data_final[:,:,slice,:] = moving_data
+        # apply transforms
         
+        if n_slices==1: # data is single plane
+            moving_data = np.asarray(moving_proxy.dataobj[:,:,:],dtype='float32') #xyt
+            moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
+            moving_data = pr.transform(moving_data)
+            moving_data = np.moveaxis(moving_data, 0, -1)#rearrange moving axes back to x,y,t
+            moving_data_final[:,:,:] = moving_data
 
-        if functional_path_one is not None:
-            functional_data_one = np.squeeze(np.asarray(functional_one_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-            functional_data_one = np.moveaxis(functional_data_one, -1, 0) #rearrange moving axes to t,x,y
+            if functional_path_one is not None:
+                functional_data_one = np.asarray(functional_one_proxy.dataobj[:,:,:],dtype='float32') #xyt
+                functional_data_one = np.moveaxis(functional_data_one, -1, 0) #rearrange moving axes to t,x,y
+                functional_data_one = pr.transform(functional_data_one)
+                functional_data_one = np.moveaxis(functional_data_one, 0, -1) #rearrange moving axes back to x,y,t
+                functional_data_one_final[:,:,:] = functional_data_one
 
-            # apply transform, reorder axes back to xyt
-            functional_data_one = pr.transform(functional_data_one)
-            functional_data_one = np.moveaxis(functional_data_one, 0, -1) #rearrange moving axes back to x,y,t
-            functional_data_one_final[:,:,slice,:] = functional_data_one
+                if functional_path_two is not None:
+                    functional_data_two = np.asarray(functional_two_proxy.dataobj[:,:,:],dtype='float32') #xyt
+                    functional_data_two = np.moveaxis(functional_data_two, -1, 0) #rearrange moving axes to t,x,y
+                    functional_data_two = pr.transform(functional_data_two)
+                    functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
+                    functional_data_two_final[:,:,:] = functional_data_two
 
-            if functional_path_two is not None:
-                functional_data_two = np.squeeze(np.asarray(functional_two_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
-                functional_data_two = np.moveaxis(functional_data_two, -1, 0) #rearrange moving axes to t,x,y
+        else: # data is volume
+            moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #xyt
+            moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
+            moving_data = pr.transform(moving_data)
+            moving_data = np.moveaxis(moving_data, 0, -1)#rearrange moving axes back to x,y,t
+            moving_data_final[:,:,slice,:] = moving_data
+ 
+            if functional_path_one is not None:
+                functional_data_one = np.squeeze(np.asarray(functional_one_proxy.dataobj[:,:,slice,:],dtype='float32')) #xyt
+                functional_data_one = np.moveaxis(functional_data_one, -1, 0) #rearrange moving axes to t,x,y
+                functional_data_one = pr.transform(functional_data_one)
+                functional_data_one = np.moveaxis(functional_data_one, 0, -1) #rearrange moving axes back to x,y,t
+                functional_data_one_final[:,:,slice,:] = functional_data_one
 
-                # apply transform, reorder axes back to xyt
-                functional_data_two = pr.transform(functional_data_two)
-                functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
-                functional_data_two_final[:,:,slice,:] = functional_data_two
-
+                if functional_path_two is not None:
+                    functional_data_two = np.squeeze(np.asarray(functional_two_proxy.dataobj[:,:,slice,:],dtype='float32')) #xyt
+                    functional_data_two = np.moveaxis(functional_data_two, -1, 0) #rearrange moving axes to t,x,y
+                    functional_data_two = pr.transform(functional_data_two)
+                    functional_data_two = np.moveaxis(functional_data_two, 0, -1) #rearrange moving axes back to x,y,t
+                    functional_data_two_final[:,:,slice,:] = functional_data_two
+        
+        
         # save transform params for slice to tmats_final
-        for t_ind in range(n_timepoints):
-            tmats_final[:,:,slice,t_ind] = np.asarray(pr._tmats[t_ind],dtype='float32')
+        tmats_final[:,:,slice] = np.asarray(pr._tmats,dtype='float32')
             # for a rigid transformation, tmat is a 3x3 matrix [[cos(r) −sin(r) tx],[sin(r) cos(r) ty],[0 0 1]] where r is angle, t is translation
 
         print('Motion correction for ' + moving_path.as_posix()
@@ -142,19 +171,6 @@ def reg_slice(
         
         if functional_path_two is not None:
             nib.Nifti1Image(np.squeeze(functional_data_two_final), aff).to_filename(functional_channel_output_paths[1])
-
-    #derive recording metadata path for moco plot - from moco directory
-
-    metadata_dir = os.path.join(moving_output_path.parent.parent, 'imaging')
-    moco_dir = os.path.dirname(moving_output_path)
-
-    moco_utils.save_moco_figure_stackreg_rigid(
-    transform_matrix=tmats_final,
-    metadata_dir=metadata_dir,
-    moco_dir=moco_dir,
-    printlog=printlog,
-    n_slices=n_slices
-    )
     
 
 if __name__ == '__main__':
@@ -192,6 +208,7 @@ if __name__ == '__main__':
     print('args: ' + repr(args))
 
     reg_par_output = args.reg_par_output
+    fixed_moco_mean_path = args.fixed_moco_mean_path
 
     #####################
     ### SETUP LOGGING ###
@@ -284,7 +301,6 @@ if __name__ == '__main__':
         print('Error: could not interpret moco_smooth, should be True or False, datatype=string')
     moco_settings['avg_wid'] = int(args.moco_avg_wid)
     moco_settings['n_proc'] = int(args.cores)
-    moco_settings['moco_mean_frames'] = int(args.moco_mean_frames)
 
     print('moco_settings: ' + repr(moco_settings))
 
@@ -296,8 +312,9 @@ if __name__ == '__main__':
     # DO registration
     reg_slice(
              moving_path=moving_path,
+             fixed_path=args.fixed_moco_mean_path,
              functional_channel_paths=functional_channel_paths,
-             par_output = par_output,
+             par_output = reg_par_output,
              moco_settings = moco_settings,
              )
     
