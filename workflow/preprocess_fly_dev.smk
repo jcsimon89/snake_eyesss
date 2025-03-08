@@ -734,14 +734,10 @@ rule register_series:
     resources: mem_mb=snake_utils.mem_mb_times_input
     input:
         # fixed mean brain to register to (first series), structural channel
-        fixed_moco_mean_path=expand(str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{meanbr_moco_ch_struct}_moco_bg_mean_func.nii" if STRUCTURAL_CHANNEL=='channel_2'
-            else str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{meanbr_moco_ch_struct}_moco_mean_func.nii",
+        fixed_moco_path=expand(str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{meanbr_moco_ch_struct}_moco_bg_func.nii" if STRUCTURAL_CHANNEL=='channel_2'
+            else str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{moco_ch_struct}_moco_func.nii",
             fixed_moco_imaging_path_func=fixed_path_func_reg,
-            meanbr_moco_ch_struct=list_of_channels_struct),
-        # moving mean brains (all series but first)
-        moco_mean_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_1_moco_mean_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        moco_mean_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_2_moco_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        moco_mean_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_3_moco_mean_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
+            moco_ch_struct=list_of_channels_struct),
         # moving brains to apply the registration to (all series but first)
         moco_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
         moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
@@ -758,13 +754,10 @@ rule register_series:
         "--dataset_path {dataset_path} "
         "--STRUCTURAL_CHANNEL {STRUCTURAL_CHANNEL} "
         "--FUNCTIONAL_CHANNELS {FUNCTIONAL_CHANNELS} "
-        "--fixed_moco_mean_path {input.fixed_moco_mean_path} "
+        "--fixed_moco_path {input.fixed_moco_path} "
         "--moco_path_ch1 {input.moco_path_ch1} "
         "--moco_path_ch2 {input.moco_path_ch2} "
         "--moco_path_ch3 {input.moco_path_ch3} "
-        "--moco_mean_path_ch1 {input.moco_mean_path_ch1} "
-        "--moco_mean_path_ch2 {input.moco_mean_path_ch2} "
-        "--moco_mean_path_ch3 {input.moco_mean_path_ch3} "
         "--reg_path_ch1 {output.reg_path_ch1} "
         "--reg_path_ch2 {output.reg_path_ch2} "
         "--reg_path_ch3 {output.reg_path_ch3} "
