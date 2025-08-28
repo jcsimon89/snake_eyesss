@@ -1,0 +1,3 @@
+FileNotFoundError in file C:\Users\jcsimon\Documents\GitHub\snake_eyesss\workflow\preprocess_fly_dev.smk, line 44:
+[Errno 2] No such file or directory: 'C:\\Users\\jcsimon\\Documents\\GitHub\\snake_eyesss\\workflow\\PAUSE\\fly.json'
+  File "C:\Users\jcsimon\Documents\GitHub\snake_eyesss\workflow\preprocess_fly_dev.smk", line 44, in <module>
