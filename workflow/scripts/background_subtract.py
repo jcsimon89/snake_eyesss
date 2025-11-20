@@ -122,6 +122,100 @@ def BgRemover3D(args, half_wid=20):
     save_name = args.bg_path_ch2
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
 
+def BgRemover2D(args, half_wid=20):
+    
+    # LOGGING
+    ####
+    logfile = utils.create_logfile(pathlib.Path(args.fly_directory), function_name="background_subtract_func")
+    printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
+    #utils.print_function_start(logfile, rule_name)
+
+    path = args.brain_paths_ch2
+    
+    #img shoud have dimension x, y, z, t here, x is along the line scan direction
+    # Doesn't load anything, just points to a given location
+    img_proxy = nib.load(path)
+    # Load data, it's float32 at this point
+    img = np.asarray(img_proxy.dataobj, dtype='float32')
+    dir = os.path.join(os.path.dirname(path),'bg')
+    file_head = path.split('.')[0].split('/')[-1]
+    print('dir: ' + str(dir))
+    print('file_head: ' + str(file_head))
+    
+    # save before fig
+    half_wid = 5
+    half_y = 15 
+    fs = 180
+    kernel2d = np.ones((half_wid*2, half_y*2))/(4*half_wid*half_y)
+    conv_template = signal.convolve2d(img.mean(-1), kernel2d, boundary='symm', mode='valid')
+    test_x, test_y = np.unravel_index(np.argmin(conv_template), conv_template.shape)
+    test_x += half_wid
+    test_y += half_y
+    
+    test_patch = img[test_x-half_wid:test_x+half_wid, test_y-half_y:test_y+half_y, :]
+    test = test_patch.mean(axis=(0,1))
+    test = test.flatten(order='F') 
+    test = (test-test.mean())/test.std()
+    f, Pxx_den = signal.periodogram(test, fs)
+    plt.semilogy(f, Pxx_den)
+    plt.ylim([1e-7, 1000])
+    plt.savefig(os.path.join(dir, file_head +'_before_bg_removal.png'))
+    plt.close()
+
+    ### draw bg
+    wid = 2*half_wid
+    kernel = np.ones(wid)/wid
+    template = np.mean(img, axis=-1)
+    bg_ind = []
+
+    for line in template:
+        tmp = np.convolve(line, kernel, 'valid')
+        bg_center = np.argmin(tmp) + half_wid
+        bg_ind.append([bg_center-half_wid, bg_center+half_wid])
+    
+    ### show bg
+    show_bg = np.mean(img, axis=-1)
+    mv = np.round(np.max(show_bg))
+    for j in range(show_bg.shape[1]):
+        show_bg[j, bg_ind[j][0]:bg_ind[j][1]] = mv
+    
+    selection_save_name = os.path.join(dir, file_head + '_bg_selection.tif')
+    io.imsave(selection_save_name, np.round(show_bg).astype('int16'))
+    
+    ### remove bg
+    img_temp = np.moveaxis(img, (0,1,2,3), (3,1,2,0))
+    out = np.zeros_like(img_temp)
+    for ind_y in range(img_temp.shape[1]):
+        for ind_z in range(img_temp.shape[2]):
+            patch = img_temp[:, ind_y, ind_z, :]
+            bg_patch = img_temp[:, ind_y, ind_z, bg_ind[ind_z][ind_y][0]:bg_ind[ind_z][ind_y][1]]
+            bg = bg_patch.mean(axis=-1)
+            patch = patch-bg[None].T
+            out[:, ind_y, ind_z, :] = patch
+    out = np.moveaxis(out, (0,1,2,3), (3,1,2,0))
+
+    ### save after
+    test_patch = out[test_x-half_wid:test_x+half_wid, test_y-half_y:test_y+half_y, :, :]
+    test = test_patch.mean(axis=(0,1))
+    test = test.flatten(order='F') 
+    test = (test-test.mean())/test.std()
+    f, Pxx_den = signal.periodogram(test, fs)
+    mpl.pyplot.semilogy(f, Pxx_den)
+    mpl.pyplot.ylim([1e-7, 1000])
+    mpl.pyplot.savefig(os.path.join(dir, file_head +'_after_bg_removal.png'))
+    mpl.pyplot.close()
+
+    ### save out
+    try:
+        assert img.shape == out.shape
+    except Exception as e:
+                printlog(str(e))
+                printlog(str(e))
+                printlog(traceback.format_exc())
+    
+    save_name = args.bg_path_ch2
+    nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
+
 if __name__ == '__main__':
     # parse shell arguments
     parser = argparse.ArgumentParser()
@@ -132,5 +226,13 @@ if __name__ == '__main__':
     parser.add_argument("--bg_path_ch2", nargs="?", help="Path to ch2 moco corrected file, if Ch2 exists")
     args = parser.parse_args()
 
-    BgRemover3D(args, half_wid=20) #original setting: 20
+    proxy = nib.load(args.brain_paths_ch2)
+    if proxy.ndim == 4:
+        print('3D bg removal')
+        BgRemover3D(args, half_wid=20) #original setting: 20
+    elif proxy.ndim ==3:
+        print('2D bg removal not implemented yet')
+        #BgRemover2D(args, half_wid=20) #original setting: 20
+    else:
+        raise ValueError('Input data must be 3D or 4D!')
 

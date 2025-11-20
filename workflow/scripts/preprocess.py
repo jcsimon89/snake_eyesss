@@ -181,7 +181,11 @@ def bleaching_qc(
         brain = np.asarray(brain_proxy.dataobj, dtype=np.float32)
         utils.check_for_nan_and_inf_func(brain)
         # calculate mean over time
-        data_mean[current_path_to_read.name] = np.mean(brain, axis=(0, 1, 2))
+        if brain.ndim == 4:
+            data_mean[current_path_to_read.name] = np.mean(brain, axis=(0, 1, 2))
+        elif brain.ndim == 3:
+            data_mean[current_path_to_read.name] = np.mean(brain, axis=(0, 1))
+    
 
     ##############################
     ### OUTPUT BLEACHING CURVE ###

@@ -587,7 +587,7 @@ rule motion_correction_parallel_slice_func:
     threads:
         40
     resources:
-        mem_mb=snake_utils.mb_for_moco_input, #.mem_mb_much_more_times_input,
+        mem_mb=snake_utils.mb_for_moco_input_slice, #.mem_mb_much_more_times_input,
         runtime=snake_utils.time_for_moco_input # runtime takes input as seconds!
     input:
         # Only use the Channels that exists - this organizes the anatomy and functional paths inside the motion correction
@@ -626,7 +626,7 @@ rule motion_correction_parallel_slice_struct:
     threads:
         40
     resources:
-        mem_mb=snake_utils.mb_for_moco_input, #.mem_mb_much_more_times_input,
+        mem_mb=snake_utils.mb_for_moco_input_slice, #.mem_mb_much_more_times_input,
         runtime=snake_utils.time_for_moco_input # runtime takes input as seconds!
     input:
         # Only use the Channels that exists - this organizes the anatomy and functional paths inside the motion correction
