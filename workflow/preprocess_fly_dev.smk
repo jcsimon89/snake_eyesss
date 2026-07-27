@@ -44,20 +44,37 @@ print('Analyze data in ' + repr(fly_folder_to_process_oak.as_posix()))
 with open(pathlib.Path(fly_folder_to_process_oak, 'fly.json'), 'r') as file:
     fly_json = json.load(file)
 
-# fictrac settings from fly.json (if not present, default values are used)
-fictrac_fps = fly_json.get('fictrac_fps', 100)
-# reg/moco settings from fly.json (if not present, default values are used)
-moco_transform_type = fly_json.get('moco_transform_type', 'StackReg.RIGID_BODY')
-moco_smooth = fly_json.get('moco_smooth', False)
-moco_avg_wid = fly_json.get('moco_avg_wid', 5) # only relevant if smooth is True
-moco_mean_frames = fly_json.get('moco_mean_frames', 40)
-cores = fly_json.get('cores', 40)
-reg_transform_type = fly_json.get('reg_transform_type', 'StackReg.RIGID_BODY')
+# validate that all required pipeline fields are present in fly.json
+# (build_fly.py fills these in automatically; missing keys indicate an old fly.json)
+_required_pipeline_keys = [
+    'fictrac_fps', 'moco_transform_type', 'moco_smooth', 'moco_avg_wid',
+    'moco_mean_frames', 'cores', 'moco_smooth_anat', 'moco_avg_wid_anat',
+    'moco_mean_frames_anat', 'background_subtraction_ch1', 'background_subtraction_ch2',
+]
+_missing = [k for k in _required_pipeline_keys if k not in fly_json]
+if _missing:
+    raise KeyError(
+        f"fly.json is missing required pipeline fields: {_missing}. "
+        f"Re-run build_fly to add defaults, or add them manually."
+    )
 
-# anatomy specific moco settings from fly.json (if not present, default values are used)
-moco_smooth_anat = fly_json.get('moco_smooth_anat', False)
-moco_avg_wid_anat = fly_json.get('moco_avg_wid_anat', 1) # only relevant if smooth is True
-moco_mean_frames_anat = fly_json.get('moco_mean_frames_anat', 40)
+# fictrac settings from fly.json
+fictrac_fps = fly_json['fictrac_fps']
+# moco settings from fly.json
+moco_transform_type = fly_json['moco_transform_type']
+moco_smooth = fly_json['moco_smooth']
+moco_avg_wid = fly_json['moco_avg_wid'] # only relevant if smooth is True
+moco_mean_frames = fly_json['moco_mean_frames']
+cores = fly_json['cores']
+# per-channel background subtraction flags
+DO_BG_CH1 = fly_json['background_subtraction_ch1']
+DO_BG_CH2 = fly_json['background_subtraction_ch2']
+DO_BG = DO_BG_CH1 or DO_BG_CH2  # True if any channel needs bg subtraction
+
+# anatomy specific moco settings from fly.json
+moco_smooth_anat = fly_json['moco_smooth_anat']
+moco_avg_wid_anat = fly_json['moco_avg_wid_anat'] # only relevant if smooth is True
+moco_mean_frames_anat = fly_json['moco_mean_frames_anat']
 
 # This needs to come from some sort of json file the experimenter
 # creates while running the experiment. Same as genotype.
@@ -156,11 +173,6 @@ for current_path in imaging_file_paths:
 
 print("list_of_paths_func " + repr(list_of_paths_func))
 
-# list of func paths for registration to first series (same as list_of_paths_func but without first series)
-list_of_paths_func_reg = natsort.natsorted(list_of_paths_func) [1:]
-fixed_path_func_reg = natsort.natsorted(list_of_paths_func)[0]
-print("fixed_path_func_reg " + repr(fixed_path_func_reg))
-print("list_of_paths_func_reg " + repr(list_of_paths_func_reg))
 
 list_of_paths_struct = []
 for current_path in imaging_file_paths:
@@ -173,7 +185,7 @@ if len(list_of_paths_struct) > 1:
     print(list_of_paths_struct)
     print('The folder ' + repr(natsort.natsorted(list_of_paths_struct)[0]) + ' will be treated as the "main" anat folder.')
     print('The other folder(s) will be ignored for this analysis. To get moco for the other folders, use the "misc_imaging" keyword!')
-    list_of_paths_struct = natsort.natsorted(list_of_paths_struct)[0]
+    list_of_paths_struct = [natsort.natsorted(list_of_paths_struct)[0]]
 print('list_of_paths_struct' + repr(list_of_paths_struct))
 
 # Folders with this keyword are run through the pipeline up to moco_mean
@@ -205,7 +217,13 @@ if CH2_EXISTS_FUNC or CH2_EXISTS_STRUCT:
     list_of_channels_for_func_moco.append("2")
 if CH3_EXISTS_FUNC or CH3_EXISTS_STRUCT:
     CH3_EXISTS_FUNC_MOCO = True
-    list_of_channels_for_func_moco.append("2")
+    list_of_channels_for_func_moco.append("3")
+
+list_of_channels_for_bg = []
+if DO_BG_CH1 and CH1_EXISTS_FUNC_MOCO:
+    list_of_channels_for_bg.append("1")
+if DO_BG_CH2 and CH2_EXISTS_FUNC_MOCO:
+    list_of_channels_for_bg.append("2")
 
 list_of_channels_struct = []
 if CH1_EXISTS_STRUCT:
@@ -252,6 +270,16 @@ else:
     CH3_EXISTS_MISC = False
 
 print("list_of_misc_channels" + repr(list_of_misc_channels))
+
+# Structural channel number (e.g. '1', '2') — used for moco template filenames
+_struct_ch_num = STRUCTURAL_CHANNEL.split('_')[-1]
+
+# Structural brain path for the first func series (used as shared moco reference and template)
+_first_func_brain = (
+    str(fly_folder_to_process_oak) + "/" + natsort.natsorted(list_of_paths_func)[0] + "/imaging/bg/channel_" + _struct_ch_num + "_bg_func.nii"
+    if (STRUCTURAL_CHANNEL == 'channel_1' and DO_BG_CH1) or (STRUCTURAL_CHANNEL == 'channel_2' and DO_BG_CH2)
+    else str(fly_folder_to_process_oak) + "/" + natsort.natsorted(list_of_paths_func)[0] + "/imaging/channel_" + _struct_ch_num + ".nii"
+) if list_of_paths_func else None
 
 
 rule all:
@@ -308,11 +336,12 @@ rule all:
                meanbr_ch_misc=list_of_misc_channels),
 
         ###
-        # Meanbrain BG
+        # Meanbrain BG (only for channels with background subtraction enabled)
         ###
         expand(str(fly_folder_to_process_oak)
-                + "/{meanbr_imaging_paths_func}/imaging/bg/channel_2_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-                meanbr_imaging_paths_func=list_of_paths_func),
+                + "/{meanbr_imaging_paths_func}/imaging/bg/channel_{meanbr_bg_ch}_bg_mean_func.nii" if DO_BG else [],
+                meanbr_imaging_paths_func=list_of_paths_func,
+                meanbr_bg_ch=list_of_channels_for_bg),
 
         ###
         # Motion correction output FUNC
@@ -323,10 +352,12 @@ rule all:
                moco_imaging_paths_func=list_of_paths_func),
 
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
+               + "/{moco_imaging_paths_func}/moco/" + ("channel_1_moco_bg_func.nii" if DO_BG_CH1 else "channel_1_moco_func.nii")
+               if CH1_EXISTS_FUNC_MOCO else [],
             moco_imaging_paths_func=list_of_paths_func),
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+               + "/{moco_imaging_paths_func}/moco/" + ("channel_2_moco_bg_func.nii" if DO_BG_CH2 else "channel_2_moco_func.nii")
+               if CH2_EXISTS_FUNC_MOCO else [],
             moco_imaging_paths_func=list_of_paths_func),
         expand(str(fly_folder_to_process_oak)
                + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
@@ -349,6 +380,13 @@ rule all:
                moco_imaging_paths_struct=list_of_paths_struct),
 
         ###
+        # Moco templates
+        ###
+        [str(fly_folder_to_process_oak) + "/" + natsort.natsorted(list_of_paths_func)[0] + "/moco/moco_template_ch" + _struct_ch_num + ".nii"] if list_of_paths_func else [],
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/moco_template_ch" + _struct_ch_num + ".nii",
+               moco_imaging_paths_struct=list_of_paths_struct) if list_of_paths_struct else [],
+
+        ###
         # Motion correction output MISC
         ###
         expand(str(fly_folder_to_process_oak)
@@ -368,11 +406,13 @@ rule all:
         # Meanbrain of moco brain
         ###
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_meanbr_imaging_paths_func}/moco/channel_1_moco_mean_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
+               + "/{moco_meanbr_imaging_paths_func}/moco/" + ("channel_1_moco_bg_mean_func.nii" if DO_BG_CH1 else "channel_1_moco_mean_func.nii")
+               if CH1_EXISTS_FUNC_MOCO else [],
             moco_meanbr_imaging_paths_func=list_of_paths_func),
 
         expand(str(fly_folder_to_process_oak)
-               + "/{moco_meanbr_imaging_paths_func}/moco/channel_2_moco_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+               + "/{moco_meanbr_imaging_paths_func}/moco/" + ("channel_2_moco_bg_mean_func.nii" if DO_BG_CH2 else "channel_2_moco_mean_func.nii")
+               if CH2_EXISTS_FUNC_MOCO else [],
             moco_meanbr_imaging_paths_func=list_of_paths_func),
 
         expand(str(fly_folder_to_process_oak)
@@ -392,34 +432,19 @@ rule all:
         ####
 
         ###
-        # Background Subtraction (line by line)
+        # Background Subtraction (line by line, per channel, controlled by fly.json flags)
         ###
-        # jcs run background_subtract on ch2 only?
-        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-                moco_imaging_paths_func=list_of_paths_func),
-        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_before_bg_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-                moco_imaging_paths_func=list_of_paths_func),
-        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_after_bg_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-                moco_imaging_paths_func=list_of_paths_func),
-        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
-                moco_imaging_paths_func=list_of_paths_func),
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_{bg_ch}_bg_func.nii" if DO_BG else [],
+                moco_imaging_paths_func=list_of_paths_func, bg_ch=list_of_channels_for_bg),
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_{bg_ch}_before_bg_removal.png" if DO_BG else [],
+                moco_imaging_paths_func=list_of_paths_func, bg_ch=list_of_channels_for_bg),
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_{bg_ch}_after_bg_removal.png" if DO_BG else [],
+                moco_imaging_paths_func=list_of_paths_func, bg_ch=list_of_channels_for_bg),
+        expand(str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_{bg_ch}_bg_selection.tif" if DO_BG else [],
+                moco_imaging_paths_func=list_of_paths_func, bg_ch=list_of_channels_for_bg),
     
-        ###
-        # register_series
-        ###
-        expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func_reg}/moco/tmats_func_reg.npy",
-               moco_imaging_paths_func_reg=list_of_paths_func_reg),
-
-        expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func_reg}/moco/channel_1_moco_func_reg.nii" if CH1_EXISTS_FUNC_MOCO else [],
-            moco_imaging_paths_func_reg=list_of_paths_func_reg),
-        expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func_reg}/moco/channel_2_moco_bg_func_reg.nii" if CH2_EXISTS_FUNC_MOCO else [],
-            moco_imaging_paths_func_reg=list_of_paths_func_reg),
-        expand(str(fly_folder_to_process_oak)
-               + "/{moco_imaging_paths_func_reg}/moco/channel_3_moco_func_reg.nii" if CH3_EXISTS_FUNC_MOCO else [],
-            moco_imaging_paths_func_reg=list_of_paths_func_reg),
+        # register_series step removed — all func series now use the first series as the
+        # moco template directly, so no post-hoc alignment is needed.
 
 rule fly_builder_rule:
     threads:
@@ -544,9 +569,9 @@ rule make_mean_brain_rule_bg_func:
         mem_mb=snake_utils.mem_mb_less_times_input,  #snake_utils.mem_mb_times_input #mem_mb=snake_utils.mem_mb_more_times_input
         runtime='10m' # should be enough
     input:
-            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii"
+            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_func}/imaging/bg/channel_{meanbr_bg_ch}_bg_func.nii"
     output:
-            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_func}/imaging/bg/channel_2_bg_mean_func.nii"
+            str(fly_folder_to_process_oak) + "/{meanbr_imaging_paths_func}/imaging/bg/channel_{meanbr_bg_ch}_bg_mean_func.nii"
     run:
         try:
             preprocess.make_mean_brain(fly_directory=fly_folder_to_process_oak,
@@ -584,6 +609,9 @@ rule make_mean_brain_rule_struct:
 
 rule motion_correction_parallel_slice_func:
     # separate slices, 2d moco, restitch
+    # All func series use the first func series as the moco template (mean of first
+    # moco_mean_frames frames of its structural channel), so that ROIs drawn on the
+    # first series apply directly to all others without a separate registration step.
     threads:
         40
     resources:
@@ -592,13 +620,25 @@ rule motion_correction_parallel_slice_func:
     input:
         # Only use the Channels that exists - this organizes the anatomy and functional paths inside the motion correction
         # module.
-        brain_paths_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_1.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        brain_paths_ch1=(
+            str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_1_bg_func.nii" if DO_BG_CH1
+            else str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_1.nii"
+        ) if CH1_EXISTS_FUNC_MOCO else [],
+        brain_paths_ch2=(
+            str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if DO_BG_CH2
+            else str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_2.nii"
+        ) if CH2_EXISTS_FUNC_MOCO else [],
         brain_paths_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_3.nii" if CH3_EXISTS_FUNC_MOCO else [],
+        # Structural channel of the first func series — used as shared moco reference for all series
+        fixed_mean_brain=(
+            str(fly_folder_to_process_oak) + "/" + natsort.natsorted(list_of_paths_func)[0] + "/imaging/bg/channel_" + STRUCTURAL_CHANNEL.split('_')[-1] + "_bg_func.nii"
+            if (STRUCTURAL_CHANNEL == 'channel_1' and DO_BG_CH1) or (STRUCTURAL_CHANNEL == 'channel_2' and DO_BG_CH2)
+            else str(fly_folder_to_process_oak) + "/" + natsort.natsorted(list_of_paths_func)[0] + "/imaging/channel_" + STRUCTURAL_CHANNEL.split('_')[-1] + ".nii"
+        ),
 
     output:
-        moco_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
-        moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        moco_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/" + ("channel_1_moco_bg_func.nii" if DO_BG_CH1 else "channel_1_moco_func.nii") if CH1_EXISTS_FUNC_MOCO else [],
+        moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/" + ("channel_2_moco_bg_func.nii" if DO_BG_CH2 else "channel_2_moco_func.nii") if CH2_EXISTS_FUNC_MOCO else [],
         moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
         par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/moco/tmats_func.npy",
 
@@ -620,6 +660,7 @@ rule motion_correction_parallel_slice_func:
         "--moco_avg_wid {moco_avg_wid} "
         "--moco_mean_frames {moco_mean_frames} "
         "--cores {cores} "
+        "--fixed_mean_brain {input.fixed_mean_brain} "
 
 rule motion_correction_parallel_slice_struct:
     # separate slices, 2d moco, restitch
@@ -660,6 +701,44 @@ rule motion_correction_parallel_slice_struct:
                                        "--moco_mean_frames {moco_mean_frames_anat} " # use anat settings
                                        "--cores {cores} "
 
+if list_of_paths_func:
+    rule moco_template_func:
+        """Save the moco template for the first func series (shared reference for all series)."""
+        input:
+            brain=_first_func_brain,
+            moco_done=str(fly_folder_to_process_oak) + "/" + natsort.natsorted(list_of_paths_func)[0] + "/moco/tmats_func.npy",
+        output:
+            template=str(fly_folder_to_process_oak) + "/" + natsort.natsorted(list_of_paths_func)[0] + "/moco/moco_template_ch" + _struct_ch_num + ".nii",
+        run:
+            import nibabel as nib
+            import numpy as np
+            proxy = nib.load(input.brain)
+            n = moco_mean_frames
+            if proxy.ndim == 4:
+                t = np.asarray(proxy.dataobj[:, :, :, :n], dtype='float32').mean(-1)
+            else:
+                t = np.asarray(proxy.dataobj[:, :, :n], dtype='float32').mean(-1)
+            nib.Nifti2Image(t.astype('float32'), np.eye(4)).to_filename(output.template)
+
+if list_of_paths_struct:
+    rule moco_template_struct:
+        """Save the moco template for each anat series (each uses its own internal reference)."""
+        input:
+            brain=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/imaging/channel_" + _struct_ch_num + ".nii",
+            moco_done=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/tmats_struct.npy",
+        output:
+            template=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_struct}/moco/moco_template_ch" + _struct_ch_num + ".nii",
+        run:
+            import nibabel as nib
+            import numpy as np
+            proxy = nib.load(input.brain)
+            n = moco_mean_frames_anat
+            if proxy.ndim == 4:
+                t = np.asarray(proxy.dataobj[:, :, :, :n], dtype='float32').mean(-1)
+            else:
+                t = np.asarray(proxy.dataobj[:, :, :n], dtype='float32').mean(-1)
+            nib.Nifti2Image(t.astype('float32'), np.eye(4)).to_filename(output.template)
+
 rule moco_mean_brain_rule_func:
     """
     """
@@ -668,12 +747,12 @@ rule moco_mean_brain_rule_func:
         mem_mb=snake_utils.mem_mb_times_input,
         runtime='10m'# should be enough
     input:
-        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/" + ("channel_1_moco_bg_func.nii" if DO_BG_CH1 else "channel_1_moco_func.nii") if CH1_EXISTS_FUNC_MOCO else [],
+        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/" + ("channel_2_moco_bg_func.nii" if DO_BG_CH2 else "channel_2_moco_func.nii") if CH2_EXISTS_FUNC_MOCO else [],
         str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
     output:
-        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_1_moco_mean_func.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_2_moco_bg_mean_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/" + ("channel_1_moco_bg_mean_func.nii" if DO_BG_CH1 else "channel_1_moco_mean_func.nii") if CH1_EXISTS_FUNC_MOCO else [],
+        str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/" + ("channel_2_moco_bg_mean_func.nii" if DO_BG_CH2 else "channel_2_moco_mean_func.nii") if CH2_EXISTS_FUNC_MOCO else [],
         str(fly_folder_to_process_oak) + "/{moco_meanbr_imaging_paths_func}/moco/channel_3_moco_mean_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
     run:
         try:
@@ -711,56 +790,27 @@ rule moco_mean_brain_rule_struct:
                 error_stack=error_stack)
 
 rule background_subtract_func:
-    # run alex's line-by-line background subtraction (on channel 2 only?)
+    # line-by-line background subtraction, per-channel flags from fly.json
     threads: snake_utils.threads_per_memory
     resources: mem_mb=snake_utils.mem_mb_times_input
     input:
-        # run background_subtract on ch2 only?
-        brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_2.nii" if CH2_EXISTS_FUNC_MOCO else [],
+        brain_paths_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_1.nii" if (CH1_EXISTS_FUNC_MOCO and DO_BG_CH1) else [],
+        brain_paths_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/channel_2.nii" if (CH2_EXISTS_FUNC_MOCO and DO_BG_CH2) else [],
     output:
-        bg_path_ch2 = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_before = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_before_bg_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_after = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_after_bg_removal.png" if CH2_EXISTS_FUNC_MOCO else [],
-        bg_img_selection = str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_selection.tif" if CH2_EXISTS_FUNC_MOCO else [],
+        bg_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_1_bg_func.nii" if (CH1_EXISTS_FUNC_MOCO and DO_BG_CH1) else [],
+        bg_img_before_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_1_before_bg_removal.png" if (CH1_EXISTS_FUNC_MOCO and DO_BG_CH1) else [],
+        bg_img_after_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_1_after_bg_removal.png" if (CH1_EXISTS_FUNC_MOCO and DO_BG_CH1) else [],
+        bg_img_selection_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_1_bg_selection.tif" if (CH1_EXISTS_FUNC_MOCO and DO_BG_CH1) else [],
+        bg_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_func.nii" if (CH2_EXISTS_FUNC_MOCO and DO_BG_CH2) else [],
+        bg_img_before_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_before_bg_removal.png" if (CH2_EXISTS_FUNC_MOCO and DO_BG_CH2) else [],
+        bg_img_after_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_after_bg_removal.png" if (CH2_EXISTS_FUNC_MOCO and DO_BG_CH2) else [],
+        bg_img_selection_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func}/imaging/bg/channel_2_bg_selection.tif" if (CH2_EXISTS_FUNC_MOCO and DO_BG_CH2) else [],
     shell: shell_python_command + " " + scripts_path + "/scripts/background_subtract.py "
         "--fly_directory {fly_folder_to_process_oak} "
-        "--dataset_path {dataset_path} "
+        "--brain_paths_ch1 {input.brain_paths_ch1} "
         "--brain_paths_ch2 {input.brain_paths_ch2} "
-        "--FUNCTIONAL_CHANNELS {FUNCTIONAL_CHANNELS} "
+        "--bg_path_ch1 {output.bg_path_ch1} "
         "--bg_path_ch2 {output.bg_path_ch2} "
 
-rule register_series:
-    # register each functional series to the first series so that rois are aligned and apply to all series (correct for drift)
-    threads: snake_utils.threads_per_memory
-    resources: mem_mb=snake_utils.mem_mb_times_input
-    input:
-        # fixed mean brain to register to (first series), structural channel
-        fixed_moco_path=expand(str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{moco_ch_struct}_moco_bg_func.nii" if STRUCTURAL_CHANNEL=='channel_2'
-            else str(fly_folder_to_process_oak) + "/{fixed_moco_imaging_path_func}/moco/channel_{moco_ch_struct}_moco_func.nii",
-            fixed_moco_imaging_path_func=fixed_path_func_reg,
-            moco_ch_struct=list_of_channels_struct),
-        # moving brains to apply the registration to (all series but first)
-        moco_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_1_moco_func.nii" if CH1_EXISTS_FUNC_MOCO else[],
-        moco_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_2_moco_bg_func.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        moco_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_3_moco_func.nii" if CH3_EXISTS_FUNC_MOCO else [],
-        
-    output:
-        reg_path_ch1=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_1_moco_func_reg.nii" if CH1_EXISTS_FUNC_MOCO else [],
-        reg_path_ch2=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_2_moco_bg_func_reg.nii" if CH2_EXISTS_FUNC_MOCO else [],
-        reg_path_ch3=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/channel_3_moco_func_reg.nii" if CH3_EXISTS_FUNC_MOCO else [],
-        reg_par_output=str(fly_folder_to_process_oak) + "/{moco_imaging_paths_func_reg}/moco/tmats_func_reg.npy",
-    
-    shell: shell_python_command + " " + scripts_path + "/scripts/register_series.py "
-        "--fly_directory {fly_folder_to_process_oak} "
-        "--dataset_path {dataset_path} "
-        "--STRUCTURAL_CHANNEL {STRUCTURAL_CHANNEL} "
-        "--FUNCTIONAL_CHANNELS {FUNCTIONAL_CHANNELS} "
-        "--fixed_moco_path {input.fixed_moco_path} "
-        "--moco_path_ch1 {input.moco_path_ch1} "
-        "--moco_path_ch2 {input.moco_path_ch2} "
-        "--moco_path_ch3 {input.moco_path_ch3} "
-        "--reg_path_ch1 {output.reg_path_ch1} "
-        "--reg_path_ch2 {output.reg_path_ch2} "
-        "--reg_path_ch3 {output.reg_path_ch3} "
-        "--reg_par_output {output.reg_par_output} "        
-        "--reg_transform_type {reg_transform_type} "
+# register_series rule removed — alignment across func series is now handled by using
+# the first func series as the shared moco template in motion_correction_parallel_slice_func.
