@@ -86,11 +86,7 @@ for current_fly in sorted(provided_working_directory.iterdir()):
 
         if not already_transfered:
 
-            GENOTYPE = None # in case it's missing in the second or third fly
-            fly_json_path = pathlib.Path(current_fly, 'fly.json') # if not present will throw error
-            with open(fly_json_path,'r') as openfile:
-                fly_json = json.load(openfile)
-                GENOTYPE = fly_json['Genotype']  # Must be present, else error
+            GENOTYPE = build_fly.get_genotype_from_import(current_fly)
 
             # Since we have now different genotypes, will have to create new folders. Check if this is the first
             # fly with this genotype during this run.
