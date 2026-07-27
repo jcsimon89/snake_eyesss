@@ -23,15 +23,15 @@ sys.path.insert(0, os.path.join(workflow_path))
 
 from brainsss import utils
 
-def BgRemover3D(args, half_wid=20):
-    
+def BgRemover3D(input_path, output_path, fly_directory, half_wid=20):
+
     # LOGGING
     ####
-    logfile = utils.create_logfile(pathlib.Path(args.fly_directory), function_name="background_subtract_func")
+    logfile = utils.create_logfile(pathlib.Path(fly_directory), function_name="background_subtract_func")
     printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
     #utils.print_function_start(logfile, rule_name)
 
-    path = args.brain_paths_ch2
+    path = input_path
     
     #img shoud have dimension x, y, z, t here, x is along the line scan direction
     # Doesn't load anything, just points to a given location
@@ -119,18 +119,18 @@ def BgRemover3D(args, half_wid=20):
                 printlog(str(e))
                 printlog(traceback.format_exc())
     
-    save_name = args.bg_path_ch2
+    save_name = output_path
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
 
-def BgRemover2D(args, half_wid=20):
-    
+def BgRemover2D(input_path, output_path, fly_directory, half_wid=20):
+
     # LOGGING
     ####
-    logfile = utils.create_logfile(pathlib.Path(args.fly_directory), function_name="background_subtract_func")
+    logfile = utils.create_logfile(pathlib.Path(fly_directory), function_name="background_subtract_func")
     printlog = getattr(utils.Printlog(logfile=logfile), "print_to_log")
     #utils.print_function_start(logfile, rule_name)
 
-    path = args.brain_paths_ch2
+    path = input_path
     
     #img shoud have dimension x, y, z, t here, x is along the line scan direction
     # Doesn't load anything, just points to a given location
@@ -174,28 +174,23 @@ def BgRemover2D(args, half_wid=20):
         bg_ind.append([bg_center-half_wid, bg_center+half_wid])
     
     ### show bg
-    show_bg = np.mean(img, axis=-1)
+    show_bg = np.mean(img, axis=-1)  # (x, y)
     mv = np.round(np.max(show_bg))
-    for j in range(show_bg.shape[1]):
-        show_bg[j, bg_ind[j][0]:bg_ind[j][1]] = mv
-    
+    for i in range(show_bg.shape[0]):  # iterate x rows
+        show_bg[i, bg_ind[i][0]:bg_ind[i][1]] = mv
+
     selection_save_name = os.path.join(dir, file_head + '_bg_selection.tif')
     io.imsave(selection_save_name, np.round(show_bg).astype('int16'))
-    
-    ### remove bg
-    img_temp = np.moveaxis(img, (0,1,2,3), (3,1,2,0))
-    out = np.zeros_like(img_temp)
-    for ind_y in range(img_temp.shape[1]):
-        for ind_z in range(img_temp.shape[2]):
-            patch = img_temp[:, ind_y, ind_z, :]
-            bg_patch = img_temp[:, ind_y, ind_z, bg_ind[ind_z][ind_y][0]:bg_ind[ind_z][ind_y][1]]
-            bg = bg_patch.mean(axis=-1)
-            patch = patch-bg[None].T
-            out[:, ind_y, ind_z, :] = patch
-    out = np.moveaxis(out, (0,1,2,3), (3,1,2,0))
+
+    ### remove bg — for each x row, subtract the per-timepoint mean of the bg columns
+    out = np.zeros_like(img)
+    for ind_x in range(img.shape[0]):
+        y_start, y_end = bg_ind[ind_x]
+        bg = img[ind_x, y_start:y_end, :].mean(axis=0)  # (t,)
+        out[ind_x, :, :] = img[ind_x, :, :] - bg[np.newaxis, :]
 
     ### save after
-    test_patch = out[test_x-half_wid:test_x+half_wid, test_y-half_y:test_y+half_y, :, :]
+    test_patch = out[test_x-half_wid:test_x+half_wid, test_y-half_y:test_y+half_y, :]
     test = test_patch.mean(axis=(0,1))
     test = test.flatten(order='F') 
     test = (test-test.mean())/test.std()
@@ -213,26 +208,37 @@ def BgRemover2D(args, half_wid=20):
                 printlog(str(e))
                 printlog(traceback.format_exc())
     
-    save_name = args.bg_path_ch2
+    save_name = output_path
     nib.Nifti1Image(out.astype('float32'), np.eye(4)).to_filename(save_name)
+
+def _run_bg_removal(channel_path, output_path, fly_directory):
+    proxy = nib.load(channel_path)
+    if proxy.ndim == 4:
+        print('3D bg removal')
+        BgRemover3D(channel_path, output_path, fly_directory)
+    elif proxy.ndim == 3:
+        print('2D bg removal')
+        BgRemover2D(channel_path, output_path, fly_directory)
+    else:
+        raise ValueError('Input data must be 3D or 4D!')
 
 if __name__ == '__main__':
     # parse shell arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--fly_directory", help="Folder of fly to save log")
     parser.add_argument("--dataset_path", nargs="?", help="Folder pointing 'preprocessed'")
-    parser.add_argument("--brain_paths_ch2", nargs="?", help="Path to ch2 file, if it exists")
+    parser.add_argument("--brain_paths_ch1", nargs="?", default=None, help="Path to ch1 file, if it exists")
+    parser.add_argument("--brain_paths_ch2", nargs="?", default=None, help="Path to ch2 file, if it exists")
     parser.add_argument("--FUNCTIONAL_CHANNELS", nargs="?", help="list with strings containing the functional channel")
-    parser.add_argument("--bg_path_ch2", nargs="?", help="Path to ch2 moco corrected file, if Ch2 exists")
+    parser.add_argument("--bg_path_ch1", nargs="?", default=None, help="Output path for bg-subtracted ch1")
+    parser.add_argument("--bg_path_ch2", nargs="?", default=None, help="Output path for bg-subtracted ch2")
     args = parser.parse_args()
 
-    proxy = nib.load(args.brain_paths_ch2)
-    if proxy.ndim == 4:
-        print('3D bg removal')
-        BgRemover3D(args, half_wid=20) #original setting: 20
-    elif proxy.ndim ==3:
-        print('2D bg removal not implemented yet')
-        #BgRemover2D(args, half_wid=20) #original setting: 20
-    else:
-        raise ValueError('Input data must be 3D or 4D!')
+    if args.brain_paths_ch1:
+        print('Processing channel 1')
+        _run_bg_removal(args.brain_paths_ch1, args.bg_path_ch1, args.fly_directory)
+
+    if args.brain_paths_ch2:
+        print('Processing channel 2')
+        _run_bg_removal(args.brain_paths_ch2, args.bg_path_ch2, args.fly_directory)
 
