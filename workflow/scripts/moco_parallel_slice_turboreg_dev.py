@@ -67,14 +67,34 @@ def moco_slice(
     moving_path,
     functional_channel_paths,
     par_output,
-    moco_settings
+    moco_settings,
+    fixed_ref_path=None,
 ):
     """
     Loop doing the motion correction for each slice.
     This is the function that is doing the heavy lifting of the multiprocessing.
     Saves the transformed files as nii (float32).
     Saves transformation matrices as tmats_struct or func.npy (float32)
+
+    fixed_ref_path: path to the structural channel of the reference series (4D) or a
+        pre-computed mean brain (3D). When provided, the per-slice reference used by
+        ParaReg is derived from this file (mean of first moco_mean_frames frames for 4D,
+        or the image directly for 3D) instead of from the moving data itself.
     """
+    if fixed_ref_path is not None:
+        fixed_ref_proxy = nib.load(fixed_ref_path)
+        n_mean = moco_settings['moco_mean_frames']
+        if len(fixed_ref_proxy.shape) == 4:
+            # Volume recording (x, y, z, t): read only first n_mean timepoints, then mean → (x, y, z)
+            fixed_ref_volume = np.asarray(fixed_ref_proxy.dataobj[:, :, :, :n_mean], dtype='float32').mean(axis=-1)
+        elif len(fixed_ref_proxy.shape) == 3:
+            # Single-plane recording (x, y, t): read only first n_mean timepoints, then mean → (x, y)
+            fixed_ref_volume = np.asarray(fixed_ref_proxy.dataobj[:, :, :n_mean], dtype='float32').mean(axis=-1)
+        else:
+            # Already a 2D mean image — use directly
+            fixed_ref_volume = np.asarray(fixed_ref_proxy.dataobj, dtype='float32')
+    else:
+        fixed_ref_volume = None
     # Unpack functional paths
     if functional_channel_paths is None:
         functional_path_one = None
@@ -120,13 +140,21 @@ def moco_slice(
             moving_data = np.squeeze(np.asarray(moving_proxy.dataobj[:,:,slice,:],dtype='float32')) #source data xyzt into xyt
         moving_data = np.moveaxis(moving_data, -1, 0) #rearrange moving axes to t,x,y
         
+        if fixed_ref_volume is not None:
+            if n_slices == 1:
+                ref = np.squeeze(fixed_ref_volume)  # (x, y)
+            else:
+                ref = fixed_ref_volume[:, :, slice]  # (x, y)
+        else:
+            ref = None  # ParaReg computes mean from first moco_mean_frames frames
+
         pr = ParaReg(reg_mode=moco_settings['reg_mode'],
                      smooth=moco_settings['smooth'],
                      avg_wid=moco_settings['avg_wid'],
                      n_proc=moco_settings['n_proc'],
                      mean_frames=moco_settings['moco_mean_frames']
                      )
-        pr.register(img=moving_data)
+        pr.register(img=moving_data, ref=ref)
 
         # apply transform, reorder axes back to xyt
         
@@ -181,18 +209,15 @@ def moco_slice(
     np.save(pathlib.Path(par_output), np.squeeze(tmats_final))
 
     # save nifti files
-    if n_slices==1:
-        aff = np.eye(3)
-    else:
-        aff = np.eye(4)
+    aff = np.eye(4)
 
-    nib.Nifti1Image(np.squeeze(moving_data_final), aff).to_filename(moving_output_path)
-    
+    nib.Nifti2Image(np.squeeze(moving_data_final), aff).to_filename(moving_output_path)
+
     if functional_path_one is not None:
-        nib.Nifti1Image(np.squeeze(functional_data_one_final), aff).to_filename(functional_channel_output_paths[0])
-        
+        nib.Nifti2Image(np.squeeze(functional_data_one_final), aff).to_filename(functional_channel_output_paths[0])
+
         if functional_path_two is not None:
-            nib.Nifti1Image(np.squeeze(functional_data_two_final), aff).to_filename(functional_channel_output_paths[1])
+            nib.Nifti2Image(np.squeeze(functional_data_two_final), aff).to_filename(functional_channel_output_paths[1])
 
     #derive recording metadata path for moco plot - from moco directory
 
@@ -237,6 +262,10 @@ if __name__ == '__main__':
     parser.add_argument("--moco_avg_wid", nargs="?", help="Width of the average") # if smooth=True, default is 3 for func, 1 for anat
     parser.add_argument("--moco_mean_frames", nargs="?", help="Number of frames to average for moco fixed brain") # default is 40 for func, 40 for anat
     parser.add_argument("--cores", nargs="?", help="Number of cores to use") # default is 40
+    parser.add_argument("--fixed_mean_brain", nargs="?", default=None,
+                        help="Path to reference series structural channel (4D) or pre-computed mean brain (3D). "
+                             "When provided, all series use the same per-slice reference derived from this file "
+                             "instead of computing their own template.")
 
     args = parser.parse_args()
 
@@ -354,9 +383,11 @@ if __name__ == '__main__':
     moco_slice(
              moving_path=moving_path,
              functional_channel_paths=functional_channel_paths,
-             par_output = par_output,
-             moco_settings = moco_settings,
+             par_output=par_output,
+             moco_settings=moco_settings,
+             fixed_ref_path=args.fixed_mean_brain,
              )
     
     print('Took: ' + repr(round(time.time() - time_start,1)) + 's\n to motion correct files')
     print('Motion correction done.')
+
