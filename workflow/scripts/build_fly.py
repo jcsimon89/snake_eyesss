@@ -6,6 +6,7 @@ import pathlib
 import traceback
 import shutil
 import pandas as pd
+import h5py
 
 # To import files (or 'modules') from the brainsss folder, define path to scripts!
 # path of workflow i.e. /Users/dtadres/snake_brainsss/workflow
@@ -20,6 +21,76 @@ from brainsss import utils
 # GLOBAL VARIABLES #
 ####################
 WIDTH = 120  # This is used in all logging files
+
+
+def _hdf5_attr_to_str(val):
+    """Convert an h5py attribute value to a plain Python string."""
+    if isinstance(val, bytes):
+        return val.decode('utf-8')
+    if hasattr(val, 'tolist'):
+        native = val.tolist()
+        if isinstance(native, list):  # numpy array → format as channel list string
+            items = [x.decode('utf-8') if isinstance(x, bytes) else str(x) for x in native]
+            return "['" + "','".join(items) + "']"
+        return str(native)  # numpy scalar
+    return str(val)
+
+
+def fly_json_from_hdf5(hdf5_path):
+    """
+    Build a fly.json dict from stimpack metadata stored in an HDF5 file.
+    Uses the first subject found under Subjects/.
+    """
+    with h5py.File(hdf5_path, 'r') as f:
+        top_attrs = {k: v for k, v in f.attrs.items()}
+        subject_keys = list(f['Subjects'].keys())
+        if not subject_keys:
+            raise ValueError(f'No subjects found in {hdf5_path}')
+        subject_attrs = {k: v for k, v in f['Subjects'][subject_keys[0]].attrs.items()}
+
+    genotype = (
+        _hdf5_attr_to_str(subject_attrs['genotype_father'])
+        + '_x_'
+        + _hdf5_attr_to_str(subject_attrs['genotype_mother'])
+    )
+
+    return {
+        'Age': _hdf5_attr_to_str(subject_attrs.get('age', '')),
+        'Genotype': genotype,
+        'Sex': _hdf5_attr_to_str(subject_attrs.get('sex', '')),
+        'Temp (inline heater)': _hdf5_attr_to_str(subject_attrs.get('inline_heater_temp', '')),
+        'circadian_off': _hdf5_attr_to_str(subject_attrs.get('circadian_off', '')),
+        'circadian_on': _hdf5_attr_to_str(subject_attrs.get('circadian_on', '')),
+        'functional_channel': _hdf5_attr_to_str(subject_attrs.get('functional_channel', '')),
+        'notes': _hdf5_attr_to_str(subject_attrs.get('notes', '')),
+        'structural_channel': _hdf5_attr_to_str(subject_attrs.get('structural_channel', '')),
+        'Date': _hdf5_attr_to_str(top_attrs.get('date', '')),
+    }
+
+
+def get_genotype_from_import(import_dir):
+    """
+    Return the Genotype string for a fly import folder.
+    Reads fly.json if present, otherwise falls back to the HDF5.
+    """
+    fly_json_path = pathlib.Path(import_dir, 'fly.json')
+    if fly_json_path.exists():
+        with open(fly_json_path, 'r') as f:
+            return json.load(f)['Genotype']
+    hdf5_files = [p for p in pathlib.Path(import_dir).iterdir() if p.suffix == '.hdf5']
+    if len(hdf5_files) > 1:
+        raise FileNotFoundError(
+            f'Multiple .hdf5 files found in {import_dir}: '
+            + ', '.join(p.name for p in hdf5_files)
+            + '. Expected exactly one.'
+        )
+    if not hdf5_files:
+        raise FileNotFoundError(
+            f'No fly.json or .hdf5 file found in {import_dir}. '
+            'Cannot determine Genotype.'
+        )
+    return fly_json_from_hdf5(hdf5_files[0])['Genotype']
+
 
 def fly_builder(autotransferred_stimpack,
                 fictrac_folder_path,
@@ -69,34 +140,83 @@ def fly_builder(autotransferred_stimpack,
             fly_dirs_dict["fly ID"] = current_dataset_dir.name
 
             ###
-            # Copy the fly.json file
+            # Locate the fly HDF5 file in the import directory
+            ###
+            hdf5_files = [p for p in current_import_dir.iterdir() if p.suffix == '.hdf5']
+            if len(hdf5_files) > 1:
+                raise FileNotFoundError(
+                    f'Multiple .hdf5 files found in {current_import_dir}: '
+                    + ', '.join(p.name for p in hdf5_files)
+                    + '. Expected exactly one.'
+                )
+            fly_hdf5_import_path = hdf5_files[0] if hdf5_files else None
+            if fly_hdf5_import_path:
+                print('Found fly hdf5 file: ' + repr(fly_hdf5_import_path))
+
+            ###
+            # Copy or generate fly.json
             ###
             fly_json_import_path = pathlib.Path(current_import_dir, 'fly.json')
             fly_json_fly_path = pathlib.Path(current_dataset_dir, 'fly.json')
-            shutil.copyfile(fly_json_import_path, fly_json_fly_path)
+            if fly_json_import_path.exists():
+                shutil.copyfile(fly_json_import_path, fly_json_fly_path)
+                printlog(f'Copied fly.json from import folder')
+            else:
+                if fly_hdf5_import_path is None:
+                    raise FileNotFoundError(
+                        f'No fly.json or .hdf5 found in {current_import_dir}. Cannot build fly.json.'
+                    )
+                fly_data = fly_json_from_hdf5(fly_hdf5_import_path)
+                with open(fly_json_fly_path, 'w') as f:
+                    json.dump(fly_data, f, indent=4)
+                printlog(f'Generated fly.json from HDF5 for {current_dataset_dir.name}')
 
             ###
             # Copy the fly.hdf5 file
             ###
-
-            for current_file in current_import_dir.iterdir():
-
-                if '.hdf5' in current_file.name:
-                    fly_hdf5_import_path = pathlib.Path(current_import_dir, current_file.name)
-                    print('Found fly hdf5 file: ' + repr(fly_hdf5_import_path))
-
             fly_hdf5_path = pathlib.Path(current_dataset_dir, 'fly.hdf5')
-            shutil.copyfile(fly_hdf5_import_path, fly_hdf5_path)
+            if fly_hdf5_import_path is not None:
+                shutil.copyfile(fly_hdf5_import_path, fly_hdf5_path)
 
             ###
-            # Add date & time to fly.json
+            # Add date & time to fly.json (skip if already present from HDF5 generation)
             ###
-            try:
-                add_date_to_fly(current_dataset_dir)
-            except Exception as e:
-                printlog(str(e))
-                printlog(str(e))
-                printlog(traceback.format_exc())
+            with open(fly_json_fly_path, 'r') as f:
+                _existing = json.load(f)
+            if 'Date' not in _existing:
+                try:
+                    add_date_to_fly(current_dataset_dir)
+                except Exception as e:
+                    printlog(str(e))
+                    printlog(traceback.format_exc())
+
+            ###
+            # Fill in optional pipeline defaults so every fly.json is explicit
+            ###
+            with open(fly_json_fly_path, 'r') as f:
+                _fly_json = json.load(f)
+            _defaults = {
+                'fictrac_fps': 100,
+                'moco_transform_type': 'StackReg.RIGID_BODY',
+                'moco_smooth': False,
+                'moco_avg_wid': 5,
+                'moco_mean_frames': 40,
+                'cores': 40,
+                'moco_smooth_anat': False,
+                'moco_avg_wid_anat': 1,
+                'moco_mean_frames_anat': 40,
+                'background_subtraction_ch1': False,
+                'background_subtraction_ch2': False,
+            }
+            _changed = False
+            for _key, _val in _defaults.items():
+                if _key not in _fly_json:
+                    _fly_json[_key] = _val
+                    _changed = True
+            if _changed:
+                with open(fly_json_fly_path, 'w') as f:
+                    json.dump(_fly_json, f, indent=4)
+                printlog(f'Added missing optional defaults to fly.json')
 
             ###
             # Copy fly data
