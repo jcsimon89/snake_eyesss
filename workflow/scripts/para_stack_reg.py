@@ -37,10 +37,10 @@ class ParaReg(object):
         self.mean_frames = mean_frames
     
     def register(self, img, ref=None):
-        if self.smooth:
-            img = smooth(img, wid=self.avg_wid)
         if ref is None:
             ref = img[:self.mean_frames, :, :].mean(axis=0)
+        if self.smooth:
+            img = smooth(img, wid=self.avg_wid)
         register_worker = partial(single_slice_reg, self.sr, ref)
         with Pool(processes=self.n_proc) as p:
             res = p.imap(register_worker, img, 128)
