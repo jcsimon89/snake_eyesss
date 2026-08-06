@@ -148,6 +148,19 @@ def moco_slice(
         else:
             ref = None  # ParaReg computes mean from first moco_mean_frames frames
 
+        print(f'moco_slice: moving_data.shape={moving_data.shape}, '
+              f'ref.shape={ref.shape if ref is not None else None}, '
+              f'slice={slice}, n_slices={n_slices}')
+
+        if ref is not None and ref.shape != tuple(moving_data.shape[1:]):
+            raise ValueError(
+                f'Shape mismatch: template ref.shape={ref.shape} != '
+                f'moving_data spatial shape={tuple(moving_data.shape[1:])}. '
+                f'fixed_ref_proxy.shape={fixed_ref_proxy.shape}, '
+                f'fixed_ref_volume.shape={fixed_ref_volume.shape}, '
+                f'moving_proxy.shape={moving_proxy.shape}'
+            )
+
         pr = ParaReg(reg_mode=moco_settings['reg_mode'],
                      smooth=moco_settings['smooth'],
                      avg_wid=moco_settings['avg_wid'],
